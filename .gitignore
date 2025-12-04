@@ -1,0 +1,22 @@
+# Virtual environment
+venv/
+.env
+
+# OS files
+.DS_Store
+
+# IDE files
+.idea/
+.vscode/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Config file
+config.json
+
+# Project file
+projects.json
