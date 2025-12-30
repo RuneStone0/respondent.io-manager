@@ -1,0 +1,194 @@
+{
+    "referralCode": "runekristensen-88dc9aa5d817",
+    "referralLink": "https://app.respondent.io/respondents/projects/view/6952dbaa48e49a44b158e341/seeking-pet-owners-for-exciting-study?referralCode=runekristensen-88dc9aa5d817",
+    "referralLinkPretty": "app.respondent.io/respondents/projects/view/6952dbaa48e49a44b158e341/seeking-pet-owners-for-exciting-study?referralCode=runekristensen-88dc9aa5d817",
+    "referralFee": 50,
+    "inviteCode": null,
+    "inviteId": null,
+    "messengerLink": "http://www.facebook.com/dialog/send?app_id=1606251253030805&link=https://app.respondent.io/respondents/projects/view/6952dbaa48e49a44b158e341/seeking-pet-owners-for-exciting-study?referralCode=runekristensen-88dc9aa5d817&redirect_uri=https://app.respondent.io/respondents/projects/view/6952dbaa48e49a44b158e341/seeking-pet-owners-for-exciting-study?referralCode=runekristensen-88dc9aa5d817",
+    "alreadyResponded": false,
+    "id": "6952dbaa48e49a44b158e341",
+    "userId": "691f593aabd77eb5a29c7b35",
+    "privateUser": false,
+    "project": {
+        "hideCompanyName": true,
+        "seniority": [],
+        "exposeParticipantEmails": false,
+        "ndaType": "none",
+        "incentiveHistory": [],
+        "visibility": "marketplace",
+        "cities": [],
+        "country": "US",
+        "countries": [
+            "US"
+        ],
+        "metrics": {
+            "milestones": {
+                "createToPublish": 27
+            },
+            "screeners": {
+                "complete": 444,
+                "incomplete": 16,
+                "qualifiedScreeners": 0,
+                "status": {
+                    "draft": 16,
+                    "pending": 443,
+                    "invited": 0,
+                    "scheduled": 0,
+                    "attended": 0,
+                    "noShow": 0,
+                    "paid": 0,
+                    "cancelled": 1,
+                    "invalid": 0,
+                    "rejected": 0
+                },
+                "questions": {
+                    "total": 33,
+                    "avgAnswered": 0,
+                    "avgAnsweredQualified": 0,
+                    "avgAnsweredIncomplete": 0
+                },
+                "taskCompleted": 0,
+                "notVisible": 0,
+                "qualifiedVisible": 0
+            },
+            "recruitment": {
+                "emailsSent": 3960,
+                "target": 13790,
+                "status": "RECRUITING"
+            },
+            "participants": {
+                "matched": 13842,
+                "emailsDelivered": 3185,
+                "qualified": 0,
+                "payRate": 0,
+                "avgTimeFromInviteToPaid": 0,
+                "viewCount": 1868,
+                "clickCount": 2455
+            },
+            "feasibility": {
+                "audienceSizeEstimate": {
+                    "minStrict": 0,
+                    "minMatching": 0,
+                    "maxStrict": 0,
+                    "maxMatching": 0
+                }
+            }
+        },
+        "metadata": {
+            "filters": [
+                "countries"
+            ],
+            "signals": [
+                "topics"
+            ]
+        },
+        "professionalIndustries": [],
+        "professionalJobTitles": [],
+        "employmentStatuses": [],
+        "hiddenForRespondent": false,
+        "desiredSkills": [],
+        "topics": [
+            {
+                "name": "Pets & Animals",
+                "id": "612d47a193dff5eaf5b2b418"
+            },
+            {
+                "name": "Shopping",
+                "id": "612d47a193dff5eaf5b2b41c"
+            }
+        ],
+        "score": 0,
+        "autopauseWarn": false,
+        "incentive": 225,
+        "timeMinutesRequired": 140,
+        "duration": 140,
+        "createdAt": "2025-12-29T19:51:07.515Z",
+        "name": "Seeking Pet Owners for Exciting Study!",
+        "slug": "seeking-pet-owners-for-exciting-study",
+        "kindOfResearch": 4,
+        "organizationId": "5c9bf46635574a0027954f55",
+        "teamId": "5f640a0f8b729200119c58dc",
+        "expireAt": "2026-01-29T20:18:30.720Z",
+        "copied": {
+            "from": "6945cee25d1deadb4965a379",
+            "by": "62deb4e46a80050013e3023c",
+            "at": "2025-12-29T19:51:06.935Z"
+        },
+        "talkToAudience": 2,
+        "description": "We are a qualitative research platform and we would like to speak to pet owners about products they use for their animal! If you qualify for the research study, we will send you a device that will track product usage from January 12th - February 9th. You will be asked to complete a few video recordings as well. We estimate that this study will take 110-minutes of your time for which you will receive $225.",
+        "enhancement": {
+            "enhancedDescription": "Join our remote study to discuss pet products you use while tracking usage with a device. Spend about 140 minutes in video recordings.",
+            "enhancedAudience": "Are you a pet owner who loves trying out new products?",
+            "enhancedSubject": "Are you a pet product enthusiast?"
+        },
+        "automations": {
+            "complete": {
+                "delay": 0
+            }
+        },
+        "jobFunctions": [],
+        "researchConductType": 2,
+        "filtering": {
+            "participation": {
+                "since": null,
+                "months": null
+            }
+        },
+        "specialInstructions": null,
+        "task": {
+            "type": "custom_url",
+            "url": "",
+            "projectCompletionId": "8ba0cfc2-4802-461c-8233-97760a31315e"
+        },
+        "respondentRemuneration": 225,
+        "keyQualifiers": [],
+        "updatedAt": "2025-12-30T05:46:17.141Z",
+        "ndaLink": null,
+        "closed": false,
+        "publishedAt": "2025-12-29T20:18:30.720Z",
+        "recruitingStatus": "RECRUITING",
+        "participantType": "b2c",
+        "requiresNda": false,
+        "latestHistoryItem": {
+            "createdAt": "2025-12-29T08:41:00.726Z",
+            "newRecruitingStatus": "RECRUITING",
+            "newStatus": "PAID",
+            "oldStatus": "DRAFT",
+            "projectReviewStatus": null,
+            "auto": null,
+            "userId": "62deb4e46a80050013e3023c",
+            "id": "6952e216f42b63ac539da997"
+        },
+        "methodologyType": "unmoderatedStudy",
+        "id": "6952dbaa48e49a44b158e341",
+        "stats": {
+            "responsesCount": 432,
+            "qualifiedResponsesCount": 0,
+            "invitedResponsesCount": 0,
+            "scheduledResponsesCount": 0,
+            "attendedResponsesCount": 0,
+            "paidResponsesCount": 0,
+            "notVisibleCount": 13,
+            "completesCount": 0
+        },
+        "target": 60,
+        "responsesCount": null,
+        "surveyLink": "https://app.respondent.io/projects/view/6952dbaa48e49a44b158e341",
+        "canEdit": false,
+        "isApproved": false,
+        "isQuantitativeStudy": true,
+        "oversubscribed": false,
+        "respondentRemunerationFormatted": "$225.00",
+        "isRemote": true,
+        "countryFormatted": "United States",
+        "studyLengthFormatted": "140 minute(s)",
+        "hasLocation": false,
+        "kindOfResearchFormatted": "Unmoderated Study",
+        "prequalifies": {
+            "qualifies": true
+        }
+    },
+    "showReferral": true,
+    "screenerQuestionsLength": 32
+}
