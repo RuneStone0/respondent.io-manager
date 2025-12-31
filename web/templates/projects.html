@@ -291,6 +291,20 @@
                     <div class="help-text">Select topics to hide projects that contain them. Leave all unselected to show all projects.</div>
                 </div>
                 
+                <div class="filter-group">
+                    <div class="filter-header-inline">
+                        <label>Hide projects using AI (based on what we know about you):</label>
+                        <button type="button" class="btn-link" onclick="openFeedbackManagementModal()" style="font-size: 0.9em; color: var(--primary-color); text-decoration: underline; background: none; border: none; cursor: pointer; padding: 0; margin-left: 8px;">Manage feedback</button>
+                    </div>
+                    <div class="research-type-options">
+                        <label class="research-type-option">
+                            <input type="checkbox" id="hideUsingAI" value="true">
+                            <span class="option-label">Enable AI-based hiding</span>
+                        </label>
+                    </div>
+                    <div class="help-text">When enabled, projects will be hidden based on feedback you've provided when hiding previous projects.</div>
+                </div>
+                
                 <div class="filter-panel-actions">
                     <button class="btn-primary" id="applyFiltersBtn" onclick="saveFilters()">Hide Projects</button>
                 </div>
@@ -567,6 +581,30 @@
                 <button type="button" class="btn-secondary" onclick="closeHideModal()">Cancel</button>
                 <button type="button" class="btn-secondary" onclick="hideProjectWithoutFeedback()">Hide without feedback</button>
                 <button type="button" class="btn-primary" onclick="hideProjectWithFeedback()">Hide</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feedback Management Modal -->
+<div class="modal-overlay" id="feedbackManagementModal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px; max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+            <h2>Manage Hide Feedback</h2>
+            <button class="btn-close-modal" onclick="closeFeedbackManagementModal()" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 20px;">
+            <div id="feedbackLoading" style="text-align: center; padding: 40px;">
+                <div class="progress-spinner"></div>
+                <p>Loading feedback...</p>
+            </div>
+            <div id="feedbackContent" style="display: none;">
+                <div id="feedbackList" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Feedback entries will be populated here -->
+                </div>
+                <div id="feedbackEmpty" style="text-align: center; padding: 40px; color: var(--text-secondary); display: none;">
+                    <p>No feedback entries yet. Feedback is collected when you hide projects and provide a reason.</p>
+                </div>
             </div>
         </div>
     </div>
@@ -856,6 +894,12 @@
         if (isAutoMode) {
             document.getElementById('globalAutoMode').checked = true;
         }
+        
+        // Set AI hide flag
+        const hideUsingAI = filters.hide_using_ai || false;
+        if (hideUsingAI) {
+            document.getElementById('hideUsingAI').checked = true;
+        }
         {% endif %}
         
         updateGlobalMode();
@@ -972,6 +1016,9 @@
             topics.push(checkbox.value);
         });
         
+        // Get AI hide flag
+        const hideUsingAI = document.getElementById('hideUsingAI').checked;
+        
         // Parse numeric values, ensuring they're valid numbers or null
         let minIncentive = null;
         if (minIncentiveInput) {
@@ -995,7 +1042,8 @@
             min_hourly_rate: minHourlyRate,
             isRemote: isRemote,
             auto_hide: globalAutoMode,
-            topics: topics
+            topics: topics,
+            hide_using_ai: hideUsingAI
         };
         
         // If auto mode is enabled, save and proceed without preview
@@ -1738,6 +1786,155 @@
         currentQuestionProjectId = null;
     }
     
+    // Feedback Management Modal functions
+    let editingFeedbackId = null;
+    
+    async function openFeedbackManagementModal() {
+        document.getElementById('feedbackManagementModal').style.display = 'flex';
+        await loadHideFeedback();
+    }
+    
+    function closeFeedbackManagementModal() {
+        document.getElementById('feedbackManagementModal').style.display = 'none';
+        editingFeedbackId = null;
+    }
+    
+    async function loadHideFeedback() {
+        const loadingEl = document.getElementById('feedbackLoading');
+        const contentEl = document.getElementById('feedbackContent');
+        const listEl = document.getElementById('feedbackList');
+        const emptyEl = document.getElementById('feedbackEmpty');
+        
+        loadingEl.style.display = 'block';
+        contentEl.style.display = 'none';
+        listEl.innerHTML = '';
+        
+        try {
+            const response = await fetch('/api/hide-feedback', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load feedback');
+            }
+            
+            const data = await response.json();
+            const feedbackList = data.feedback || [];
+            
+            loadingEl.style.display = 'none';
+            contentEl.style.display = 'block';
+            
+            if (feedbackList.length === 0) {
+                emptyEl.style.display = 'block';
+                listEl.style.display = 'none';
+            } else {
+                emptyEl.style.display = 'none';
+                listEl.style.display = 'flex';
+                
+                feedbackList.forEach(feedback => {
+                    const feedbackCard = createFeedbackCard(feedback);
+                    listEl.appendChild(feedbackCard);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading feedback:', error);
+            loadingEl.innerHTML = `<p style="color: var(--error-color);">Error loading feedback: ${error.message}</p>`;
+        }
+    }
+    
+    function createFeedbackCard(feedback) {
+        const card = document.createElement('div');
+        card.style.cssText = 'padding: 12px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px;';
+        card.id = `feedback-${feedback.id}`;
+        
+        const isEditing = editingFeedbackId === feedback.id;
+        
+        if (isEditing) {
+            card.innerHTML = `
+                <textarea id="editFeedbackText-${feedback.id}" rows="2" style="width: 100%; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical; margin-bottom: 8px;">${escapeHtml(feedback.feedback_text || '')}</textarea>
+                <div style="display: flex; gap: 6px;">
+                    <button class="btn-primary" onclick="saveFeedbackEdit('${feedback.id}')" style="padding: 4px 10px; font-size: 0.85em;">Save</button>
+                    <button class="btn-secondary" onclick="cancelFeedbackEdit('${feedback.id}')" style="padding: 4px 10px; font-size: 0.85em;">Cancel</button>
+                </div>
+            `;
+        } else {
+            card.innerHTML = `
+                <div style="padding: 6px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 8px; font-size: 0.9em;">${escapeHtml(feedback.feedback_text || 'No feedback provided')}</div>
+                <div style="display: flex; gap: 6px;">
+                    <button class="btn-secondary" onclick="editFeedbackEntry('${feedback.id}')" style="padding: 4px 10px; font-size: 0.85em;">Edit</button>
+                    <button class="btn-secondary" onclick="deleteFeedbackEntry('${feedback.id}')" style="padding: 4px 10px; font-size: 0.85em; color: var(--error-color); border-color: var(--error-color);">Delete</button>
+                </div>
+            `;
+        }
+        
+        return card;
+    }
+    
+    async function editFeedbackEntry(feedbackId) {
+        editingFeedbackId = feedbackId;
+        await loadHideFeedback();
+    }
+    
+    async function saveFeedbackEdit(feedbackId) {
+        const textarea = document.getElementById(`editFeedbackText-${feedbackId}`);
+        const newText = textarea.value.trim();
+        
+        if (!newText) {
+            showToast('Feedback text cannot be empty', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/hide-feedback/${feedbackId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ feedback_text: newText })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to update feedback');
+            }
+            
+            editingFeedbackId = null;
+            await loadHideFeedback();
+            showToast('Feedback updated successfully', 'success');
+        } catch (error) {
+            console.error('Error updating feedback:', error);
+            showToast('Error updating feedback: ' + error.message, 'error');
+        }
+    }
+    
+    function cancelFeedbackEdit(feedbackId) {
+        editingFeedbackId = null;
+        loadHideFeedback();
+    }
+    
+    async function deleteFeedbackEntry(feedbackId) {
+        if (!confirm('Are you sure you want to delete this feedback entry? This may affect AI-based project hiding.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/hide-feedback/${feedbackId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to delete feedback');
+            }
+            
+            await loadHideFeedback();
+            showToast('Feedback deleted successfully', 'success');
+        } catch (error) {
+            console.error('Error deleting feedback:', error);
+            showToast('Error deleting feedback: ' + error.message, 'error');
+        }
+    }
+    
     function removeProjectCard(projectId) {
         // Find and remove the project card from the DOM
         const projectCards = document.querySelectorAll('.project-card');
@@ -1890,6 +2087,10 @@
     // Close modals when clicking outside
     document.getElementById('hideModal')?.addEventListener('click', function(e) {
         if (e.target === this) closeHideModal();
+    });
+    
+    document.getElementById('feedbackManagementModal')?.addEventListener('click', function(e) {
+        if (e.target === this) closeFeedbackManagementModal();
     });
 </script>
 {% endblock %}

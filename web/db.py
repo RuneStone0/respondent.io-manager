@@ -29,6 +29,7 @@ category_recommendations_collection = None
 user_profiles_collection = None
 project_details_collection = None
 topics_collection = None
+ai_analysis_cache_collection = None
 mongo_available = False
 
 try:
@@ -49,6 +50,7 @@ try:
     user_profiles_collection = db['user_profiles']
     project_details_collection = db['project_details']
     topics_collection = db['topics']
+    ai_analysis_cache_collection = db['ai_analysis_cache']
     
     # Create indexes for new collections (non-blocking - failures won't prevent app from starting)
     try:
@@ -88,6 +90,9 @@ try:
             project_details_collection.create_index([('project_id', 1)], unique=True, background=True)
         if topics_collection is not None:
             topics_collection.create_index([('topic_id', 1)], unique=True, background=True)
+        if ai_analysis_cache_collection is not None:
+            ai_analysis_cache_collection.create_index([('user_id', 1), ('project_id', 1)], unique=True, background=True)
+            ai_analysis_cache_collection.create_index([('cached_at', 1)], background=True)
     except Exception as e:
         print(f"Warning: Could not create indexes (this is non-critical): {e}")
     
@@ -120,5 +125,6 @@ except Exception as e:
     user_profiles_collection = None
     project_details_collection = None
     topics_collection = None
+    ai_analysis_cache_collection = None
     mongo_available = False
 

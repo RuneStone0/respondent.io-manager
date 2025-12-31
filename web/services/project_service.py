@@ -9,9 +9,9 @@ import requests
 
 # Import database collections
 try:
-    from ..db import projects_cache_collection, hidden_projects_log_collection, project_details_collection, topics_collection, user_preferences_collection
+    from ..db import projects_cache_collection, hidden_projects_log_collection, project_details_collection, topics_collection, user_preferences_collection, ai_analysis_cache_collection
 except ImportError:
-    from web.db import projects_cache_collection, hidden_projects_log_collection, project_details_collection, topics_collection, user_preferences_collection
+    from web.db import projects_cache_collection, hidden_projects_log_collection, project_details_collection, topics_collection, user_preferences_collection, ai_analysis_cache_collection
 
 # Import cache manager
 try:
@@ -525,15 +525,20 @@ def process_and_hide_projects(user_id, session, profile_id, filters, page_size=5
         hide_progress[user_id_str]['total'] = len(all_projects)
         
         # Find projects that should be hidden
-        # Pass user_id and user_preferences_collection for AI filtering when auto-hide is enabled
+        # Pass user_id and user_preferences_collection for AI filtering when auto-hide or hide_using_ai is enabled
+        hide_using_ai = filters.get('hide_using_ai', False)
+        auto_hide_enabled = filters.get('auto_hide', False)
+        should_check_ai = auto_hide_enabled or hide_using_ai
+        
         projects_to_hide = []
         for project in all_projects:
             if should_hide_project(
                 project, 
                 filters, 
                 project_details_collection=project_details_collection,
-                user_id=user_id_str if filters.get('auto_hide', False) else None,
-                user_preferences_collection=user_preferences_collection if filters.get('auto_hide', False) else None
+                user_id=user_id_str if should_check_ai else None,
+                user_preferences_collection=user_preferences_collection if should_check_ai else None,
+                ai_analysis_cache_collection=ai_analysis_cache_collection if should_check_ai else None
             ):
                 projects_to_hide.append(project)
         
