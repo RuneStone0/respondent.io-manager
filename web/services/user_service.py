@@ -415,3 +415,42 @@ def save_user_filters(user_id, filters):
     except Exception as e:
         raise Exception(f"Failed to save filters to MongoDB: {e}")
 
+
+def update_user_onboarding_status(user_id, has_account):
+    """Update the has_respondent_account field in the user document"""
+    if users_collection is None:
+        raise Exception("MongoDB connection not available. Please ensure MongoDB is running.")
+    try:
+        users_collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'has_respondent_account': bool(has_account),
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+    except Exception as e:
+        error_msg = str(e)
+        if "not allowed" in error_msg.lower() or "AtlasError" in error_msg:
+            raise Exception(
+                f"MongoDB permissions error: {error_msg}\n"
+                "For MongoDB Atlas, ensure your database user has 'readWrite' role on the database.\n"
+                "You can set this in Atlas: Database Access → Edit User → Database User Privileges → Add Built-in Role → readWrite"
+            )
+        raise Exception(f"Failed to update onboarding status in MongoDB: {e}")
+
+
+def get_user_onboarding_status(user_id):
+    """Retrieve the has_respondent_account field from user document"""
+    if users_collection is None:
+        return None
+    try:
+        user_doc = users_collection.find_one({'_id': ObjectId(user_id)})
+        if user_doc:
+            return user_doc.get('has_respondent_account')
+        return None
+    except Exception as e:
+        print(f"Error getting onboarding status: {e}")
+        return None
+
