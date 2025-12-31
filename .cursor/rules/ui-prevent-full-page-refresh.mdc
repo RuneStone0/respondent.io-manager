@@ -1,0 +1,8 @@
+---
+name: ui-prevent-full-page-refresh
+description: Rule to guide agents to always avoid building UI that causes a full page refresh.
+---
+
+# Overview
+
+* While building Web UI components ensure that we won't do a full page refresh, unless absolutely nessesary
