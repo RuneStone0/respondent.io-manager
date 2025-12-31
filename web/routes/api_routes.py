@@ -32,7 +32,7 @@ try:
     from ..services.filter_service import should_hide_project, get_project_is_remote
     from ..db import (
         projects_cache_collection, hidden_projects_log_collection, user_preferences_collection, topics_collection,
-        project_details_collection
+        project_details_collection, ai_analysis_cache_collection
     )
     from ..services.topics_service import get_all_topics
 except ImportError:
@@ -56,7 +56,7 @@ except ImportError:
     from services.filter_service import should_hide_project, get_project_is_remote
     from db import (
         projects_cache_collection, hidden_projects_log_collection, user_preferences_collection, topics_collection,
-        project_details_collection
+        project_details_collection, ai_analysis_cache_collection
     )
     from services.topics_service import get_all_topics
 
@@ -318,11 +318,12 @@ def preview_hide():
             'min_hourly_rate': data.get('min_hourly_rate'),
             'isRemote': is_remote,
             'auto_hide': data.get('auto_hide', False),
-            'topics': data.get('topics', [])
+            'topics': data.get('topics', []),
+            'hide_using_ai': data.get('hide_using_ai', False)
         }
         
         # Check if any filters are set
-        if filters['min_incentive'] is None and filters['min_hourly_rate'] is None and filters['isRemote'] is None and not filters['topics']:
+        if filters['min_incentive'] is None and filters['min_hourly_rate'] is None and filters['isRemote'] is None and not filters['topics'] and not filters['hide_using_ai']:
             return jsonify({
                 'success': True,
                 'projects': [],
@@ -355,10 +356,21 @@ def preview_hide():
         )
         
         # Find projects that would be hidden
+        # Pass user_id and user_preferences_collection for AI filtering when hide_using_ai is enabled
+        hide_using_ai = filters.get('hide_using_ai', False)
+        user_id_str = str(user_id)
+        
         projects_to_hide = []
         for project in all_projects:
             # Check if project should be hidden
-            if should_hide_project(project, filters, project_details_collection=project_details_collection):
+            if should_hide_project(
+                project, 
+                filters, 
+                project_details_collection=project_details_collection,
+                user_id=user_id_str if hide_using_ai else None,
+                user_preferences_collection=user_preferences_collection if hide_using_ai else None,
+                ai_analysis_cache_collection=ai_analysis_cache_collection if hide_using_ai else None
+            ):
                 # Calculate hourly rate for display
                 remuneration = project.get('respondentRemuneration', 0)
                 time_minutes = project.get('timeMinutesRequired', 0)
@@ -474,7 +486,8 @@ def hide_project():
                     user_id,
                     project_id,
                     feedback_text,
-                    project_data
+                    project_data,
+                    ai_analysis_cache_collection
                 )
         
         # Generate AI question if no feedback provided (feedback means user already explained)
@@ -647,6 +660,181 @@ def answer_question():
             'success': True,
             'auto_hidden_count': auto_hidden_count,
             'auto_hidden_ids': auto_hidden_ids
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e) + '\n' + traceback.format_exc()}), 500
+
+
+@bp.route('/hide-feedback', methods=['GET'])
+def get_hide_feedback():
+    """Get all hide_feedback entries for the current user"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        user_id = str(session['user_id'])
+        
+        if user_preferences_collection is None:
+            return jsonify({'success': True, 'feedback': []})
+        
+        prefs = user_preferences_collection.find_one({'user_id': user_id})
+        if not prefs:
+            return jsonify({'success': True, 'feedback': []})
+        
+        feedback_list = prefs.get('hide_feedback', [])
+        
+        # Add IDs to old entries that don't have them and prepare response data
+        needs_update = False
+        import uuid
+        import copy
+        
+        response_feedback = []
+        for feedback in feedback_list:
+            feedback_copy = copy.deepcopy(feedback)
+            
+            # Ensure id exists (for backward compatibility with old entries)
+            if 'id' not in feedback:
+                feedback['id'] = str(uuid.uuid4())
+                feedback_copy['id'] = feedback['id']
+                needs_update = True
+            else:
+                feedback_copy['id'] = feedback['id']
+            
+            # Convert datetime objects to ISO format strings for JSON serialization
+            if 'hidden_at' in feedback_copy and isinstance(feedback_copy['hidden_at'], datetime):
+                feedback_copy['hidden_at'] = feedback_copy['hidden_at'].isoformat() + 'Z'
+            
+            response_feedback.append(feedback_copy)
+        
+        # Update the document if we added IDs to old entries
+        if needs_update:
+            user_preferences_collection.update_one(
+                {'user_id': user_id},
+                {
+                    '$set': {
+                        'hide_feedback': feedback_list,
+                        'updated_at': datetime.utcnow()
+                    }
+                }
+            )
+        
+        return jsonify({
+            'success': True,
+            'feedback': response_feedback
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e) + '\n' + traceback.format_exc()}), 500
+
+
+@bp.route('/hide-feedback/<feedback_id>', methods=['PUT', 'PATCH'])
+def update_hide_feedback(feedback_id):
+    """Update a specific hide_feedback entry's text"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        user_id = str(session['user_id'])
+        data = request.json
+        
+        if not data or 'feedback_text' not in data:
+            return jsonify({'error': 'feedback_text is required'}), 400
+        
+        new_feedback_text = data.get('feedback_text', '').strip()
+        
+        if user_preferences_collection is None:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        # Find the feedback entry and update it
+        prefs = user_preferences_collection.find_one({'user_id': user_id})
+        if not prefs:
+            return jsonify({'error': 'User preferences not found'}), 404
+        
+        feedback_list = prefs.get('hide_feedback', [])
+        feedback_found = False
+        
+        for feedback in feedback_list:
+            # Check by id if available, otherwise by project_id + hidden_at for backward compatibility
+            if feedback.get('id') == feedback_id:
+                feedback['feedback_text'] = new_feedback_text
+                feedback_found = True
+                break
+        
+        if not feedback_found:
+            return jsonify({'error': 'Feedback entry not found'}), 404
+        
+        # Update the document
+        user_preferences_collection.update_one(
+            {'user_id': user_id},
+            {
+                '$set': {
+                    'hide_feedback': feedback_list,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        
+        # Invalidate AI analysis cache for this user since feedback changed
+        if ai_analysis_cache_collection is not None:
+            ai_analysis_cache_collection.delete_many({'user_id': user_id})
+        
+        return jsonify({
+            'success': True,
+            'message': 'Feedback updated successfully'
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e) + '\n' + traceback.format_exc()}), 500
+
+
+@bp.route('/hide-feedback/<feedback_id>', methods=['DELETE'])
+def delete_hide_feedback(feedback_id):
+    """Delete a specific hide_feedback entry"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        user_id = str(session['user_id'])
+        
+        if user_preferences_collection is None:
+            return jsonify({'error': 'Database not available'}), 500
+        
+        # Find the feedback entry and remove it
+        prefs = user_preferences_collection.find_one({'user_id': user_id})
+        if not prefs:
+            return jsonify({'error': 'User preferences not found'}), 404
+        
+        feedback_list = prefs.get('hide_feedback', [])
+        original_length = len(feedback_list)
+        
+        # Remove the feedback entry by id
+        feedback_list = [f for f in feedback_list if f.get('id') != feedback_id]
+        
+        if len(feedback_list) == original_length:
+            return jsonify({'error': 'Feedback entry not found'}), 404
+        
+        # Update the document
+        user_preferences_collection.update_one(
+            {'user_id': user_id},
+            {
+                '$set': {
+                    'hide_feedback': feedback_list,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        
+        # Invalidate AI analysis cache for this user since feedback changed
+        if ai_analysis_cache_collection is not None:
+            ai_analysis_cache_collection.delete_many({'user_id': user_id})
+        
+        return jsonify({
+            'success': True,
+            'message': 'Feedback deleted successfully'
         })
         
     except Exception as e:

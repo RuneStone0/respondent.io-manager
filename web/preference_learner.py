@@ -7,6 +7,9 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 from bson import ObjectId
 from pymongo.collection import Collection
+import uuid
+import hashlib
+import json
 try:
     from .hidden_projects_tracker import log_hidden_project, is_project_hidden
     from .ai_analyzer import analyze_hide_feedback, extract_similarity_patterns, find_similar_projects, should_hide_project_based_on_feedback
@@ -155,7 +158,8 @@ def analyze_feedback_and_learn(
     user_id: str,
     project_id: str,
     feedback_text: str,
-    project_data: Dict[str, Any]
+    project_data: Dict[str, Any],
+    ai_analysis_cache_collection: Optional[Collection] = None
 ) -> Dict[str, Any]:
     """
     Store raw feedback text in user preferences for AI-based hiding decisions
@@ -166,26 +170,33 @@ def analyze_feedback_and_learn(
         project_id: Project ID
         feedback_text: User feedback
         project_data: Project data
+        ai_analysis_cache_collection: Optional MongoDB collection for AI analysis cache
         
     Returns:
         Dictionary with feedback information
     """
     try:
         # Store raw feedback text in user preferences
+        feedback_entry = {
+            'id': str(uuid.uuid4()),  # Generate unique ID
+            'feedback_text': feedback_text,
+            'project_id': project_id,
+            'hidden_at': datetime.utcnow()
+        }
         user_preferences_collection.update_one(
             {'user_id': user_id},
             {
                 '$push': {
-                    'hide_feedback': {
-                        'feedback_text': feedback_text,
-                        'project_id': project_id,
-                        'hidden_at': datetime.utcnow()
-                    }
+                    'hide_feedback': feedback_entry
                 },
                 '$set': {'updated_at': datetime.utcnow()}
             },
             upsert=True
         )
+        
+        # Invalidate AI analysis cache for this user since feedback changed
+        if ai_analysis_cache_collection is not None:
+            ai_analysis_cache_collection.delete_many({'user_id': user_id})
         
         return {'feedback_text': feedback_text, 'project_id': project_id}
     except Exception as e:
@@ -318,26 +329,60 @@ def should_hide_project(
         return False
 
 
+def _compute_feedback_hash(feedback_list: List[Dict[str, Any]]) -> str:
+    """
+    Compute a hash of the feedback list to detect changes
+    
+    Args:
+        feedback_list: List of feedback entries
+        
+    Returns:
+        SHA256 hash string of the feedback list
+    """
+    # Create a stable representation of feedback for hashing
+    # Only include feedback_text and id (to detect additions/deletions/edits)
+    feedback_data = []
+    for feedback in feedback_list:
+        feedback_data.append({
+            'id': feedback.get('id', ''),
+            'feedback_text': feedback.get('feedback_text', '')
+        })
+    
+    # Sort by id to ensure consistent hashing
+    feedback_data.sort(key=lambda x: x.get('id', ''))
+    
+    # Create hash
+    feedback_json = json.dumps(feedback_data, sort_keys=True)
+    return hashlib.sha256(feedback_json.encode('utf-8')).hexdigest()
+
+
 def should_hide_based_on_ai_preferences(
     user_preferences_collection: Collection,
     user_id: str,
-    project: Dict[str, Any]
+    project: Dict[str, Any],
+    ai_analysis_cache_collection: Optional[Collection] = None
 ) -> bool:
     """
     Check if project should be hidden based on user's raw feedback using AI
     
     This function uses AI to analyze the project against all stored raw feedback
     to determine if it should be hidden based on the user's previous reasons.
+    Uses caching to avoid expensive AI calls when hide_feedback hasn't changed.
     
     Args:
         user_preferences_collection: Collection for user_preferences
         user_id: User ID
         project: Project data
+        ai_analysis_cache_collection: Optional MongoDB collection for AI analysis cache
         
     Returns:
         True if project should be hidden based on AI analysis of user feedback
     """
     try:
+        project_id = project.get('id')
+        if not project_id:
+            return False
+        
         prefs = get_user_preferences(user_preferences_collection, user_id)
         
         # Get all stored raw feedback
@@ -345,8 +390,45 @@ def should_hide_based_on_ai_preferences(
         if not hide_feedback:
             return False
         
-        # Use AI to determine if project should be hidden based on feedback
-        return should_hide_project_based_on_feedback(project, hide_feedback)
+        # Compute hash of current feedback to check if cache is still valid
+        feedback_hash = _compute_feedback_hash(hide_feedback)
+        
+        # Check cache if available
+        if ai_analysis_cache_collection is not None:
+            cache_entry = ai_analysis_cache_collection.find_one({
+                'user_id': user_id,
+                'project_id': str(project_id)
+            })
+            
+            if cache_entry:
+                cached_hash = cache_entry.get('hide_feedback_hash')
+                # If feedback hasn't changed, return cached result
+                if cached_hash == feedback_hash:
+                    return cache_entry.get('should_hide', False)
+        
+        # Cache miss or feedback changed - run AI analysis
+        should_hide = should_hide_project_based_on_feedback(project, hide_feedback)
+        
+        # Store result in cache if available
+        if ai_analysis_cache_collection is not None:
+            ai_analysis_cache_collection.update_one(
+                {
+                    'user_id': user_id,
+                    'project_id': str(project_id)
+                },
+                {
+                    '$set': {
+                        'user_id': user_id,
+                        'project_id': str(project_id),
+                        'hide_feedback_hash': feedback_hash,
+                        'should_hide': should_hide,
+                        'cached_at': datetime.utcnow()
+                    }
+                },
+                upsert=True
+            )
+        
+        return should_hide
     except Exception as e:
         print(f"Error checking AI preferences: {e}")
         return False

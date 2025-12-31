@@ -41,7 +41,7 @@ def get_project_is_remote(project_id):
         return None
 
 
-def should_hide_project(project, filters, project_details_collection=None, user_id=None, user_preferences_collection=None):
+def should_hide_project(project, filters, project_details_collection=None, user_id=None, user_preferences_collection=None, ai_analysis_cache_collection=None):
     """Check if a project should be hidden based on filters
     
     Args:
@@ -50,6 +50,7 @@ def should_hide_project(project, filters, project_details_collection=None, user_
         project_details_collection: MongoDB collection for project_details
         user_id: Optional user ID for AI preference checking
         user_preferences_collection: Optional MongoDB collection for user_preferences
+        ai_analysis_cache_collection: Optional MongoDB collection for AI analysis cache
     """
     min_incentive = filters.get('min_incentive')
     min_hourly_rate = filters.get('min_hourly_rate')
@@ -104,25 +105,30 @@ def should_hide_project(project, filters, project_details_collection=None, user_
                 return True
     
     # If project passes all simple filters, check AI-learned preferences
-    if user_id and user_preferences_collection is not None:
+    # Only check if hide_using_ai flag is enabled
+    hide_using_ai = filters.get('hide_using_ai', False)
+    if hide_using_ai and user_id and user_preferences_collection is not None:
         try:
             from ..preference_learner import should_hide_based_on_ai_preferences
         except ImportError:
             from preference_learner import should_hide_based_on_ai_preferences
         
-        if should_hide_based_on_ai_preferences(user_preferences_collection, user_id, project):
+        if should_hide_based_on_ai_preferences(user_preferences_collection, user_id, project, ai_analysis_cache_collection):
             return True
     
     return False
 
 
-def apply_filters_to_projects(projects_data, filters, project_details_collection=None):
+def apply_filters_to_projects(projects_data, filters, project_details_collection=None, user_id=None, user_preferences_collection=None, ai_analysis_cache_collection=None):
     """Apply user filters to projects list
     
     Args:
         projects_data: Dictionary with 'results' list of projects
-        filters: Filter dictionary with min_incentive, min_hourly_rate, isRemote, topics
+        filters: Filter dictionary with min_incentive, min_hourly_rate, isRemote, topics, hide_using_ai
         project_details_collection: MongoDB collection for project_details
+        user_id: Optional user ID for AI preference checking
+        user_preferences_collection: Optional MongoDB collection for user_preferences
+        ai_analysis_cache_collection: Optional MongoDB collection for AI analysis cache
         
     Returns:
         tuple: (filtered_projects_data, hidden_count)
@@ -134,9 +140,10 @@ def apply_filters_to_projects(projects_data, filters, project_details_collection
     min_hourly_rate = filters.get('min_hourly_rate')
     is_remote = filters.get('isRemote')
     topics = filters.get('topics', [])
+    hide_using_ai = filters.get('hide_using_ai', False)
     
     # If no filters set, return all projects
-    if min_incentive is None and min_hourly_rate is None and is_remote is None and not topics:
+    if min_incentive is None and min_hourly_rate is None and is_remote is None and not topics and not hide_using_ai:
         return projects_data, 0
     
     original_count = len(projects_data.get('results', []))
@@ -188,6 +195,16 @@ def apply_filters_to_projects(projects_data, filters, project_details_collection
                 # If project has any topic in the filter list, hide it
                 if project_topic_ids & filter_topic_ids:
                     should_hide = True
+        
+        # Check AI preferences if hide_using_ai is enabled
+        if hide_using_ai and not should_hide and user_id and user_preferences_collection is not None:
+            try:
+                from ..preference_learner import should_hide_based_on_ai_preferences
+            except ImportError:
+                from preference_learner import should_hide_based_on_ai_preferences
+            
+            if should_hide_based_on_ai_preferences(user_preferences_collection, user_id, project, ai_analysis_cache_collection):
+                should_hide = True
         
         if not should_hide:
             filtered_results.append(project)

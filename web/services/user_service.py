@@ -241,7 +241,8 @@ def load_user_filters(user_id):
             'min_hourly_rate': None,
             'isRemote': None,
             'auto_hide': False,
-            'topics': []  # List of topic IDs to hide projects for
+            'topics': [],  # List of topic IDs to hide projects for
+            'hide_using_ai': False
         }
     try:
         prefs_doc = user_preferences_collection.find_one({'user_id': user_id})
@@ -281,7 +282,8 @@ def load_user_filters(user_id):
                 'min_hourly_rate': filters.get('min_hourly_rate'),
                 'isRemote': is_remote,
                 'auto_hide': bool(auto_hide),
-                'topics': filters.get('topics', [])
+                'topics': filters.get('topics', []),
+                'hide_using_ai': filters.get('hide_using_ai', False)
             }
     except Exception as e:
         print(f"Error loading user filters: {e}")
@@ -290,7 +292,8 @@ def load_user_filters(user_id):
         'min_hourly_rate': None,
         'isRemote': None,
         'auto_hide': False,
-        'topics': []
+        'topics': [],
+        'hide_using_ai': False
     }
 
 
@@ -361,6 +364,13 @@ def save_user_filters(user_id, filters):
         # Convert to strings and filter out empty values
         topics = [str(t) for t in topics if t]
         
+        # Get hide_using_ai flag (default to False if not provided)
+        hide_using_ai = filters.get('hide_using_ai', False)
+        # Convert to boolean if needed
+        if isinstance(hide_using_ai, str):
+            hide_using_ai = hide_using_ai.lower() in ('true', '1', 'yes', 'on')
+        hide_using_ai = bool(hide_using_ai)
+        
         # Update the document with filters in user_preferences collection
         user_preferences_collection.update_one(
             {'user_id': user_id},
@@ -372,7 +382,8 @@ def save_user_filters(user_id, filters):
                         'min_hourly_rate': min_hourly_rate,
                         'isRemote': is_remote,
                         'auto_hide': bool(auto_hide),
-                        'topics': topics
+                        'topics': topics,
+                        'hide_using_ai': hide_using_ai
                     },
                     'updated_at': datetime.utcnow()
                 }
