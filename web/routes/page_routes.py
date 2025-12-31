@@ -8,13 +8,13 @@ from datetime import datetime
 
 # Import services
 try:
-    from ..services.user_service import load_user_config, load_user_filters, save_user_config
+    from ..services.user_service import load_user_config, load_user_filters, save_user_config, get_user_onboarding_status
     from ..services.respondent_auth_service import create_respondent_session, verify_respondent_authentication
     from ..services.project_service import fetch_all_respondent_projects, get_hidden_count
     from ..cache_manager import get_cache_stats
     from ..db import projects_cache_collection
 except ImportError:
-    from services.user_service import load_user_config, load_user_filters, save_user_config
+    from services.user_service import load_user_config, load_user_filters, save_user_config, get_user_onboarding_status
     from services.respondent_auth_service import create_respondent_session, verify_respondent_authentication
     from services.project_service import fetch_all_respondent_projects, get_hidden_count
     from cache_manager import get_cache_stats
@@ -25,10 +25,71 @@ bp = Blueprint('page', __name__)
 
 @bp.route('/dashboard')
 def dashboard():
-    """Dashboard - redirect to projects page (session keys now configured via modal)"""
+    """Dashboard - redirect to projects page if credentials valid, otherwise onboarding"""
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
-    return redirect(url_for('page.projects'))
+    
+    user_id = session['user_id']
+    config = load_user_config(user_id)
+    
+    # Check if user has configured session keys
+    has_config = config is not None and config.get('cookies', {}).get('respondent.session.sid')
+    
+    # Verify credentials are valid
+    if has_config:
+        try:
+            verification = verify_respondent_authentication(
+                cookies=config.get('cookies', {}),
+                authorization=config.get('authorization')
+            )
+            if verification.get('success', False):
+                return redirect(url_for('page.projects'))
+        except Exception:
+            pass
+    
+    # No valid credentials, redirect to onboarding
+    return redirect(url_for('page.onboarding'))
+
+
+@bp.route('/onboarding')
+def onboarding():
+    """Onboarding page - checklist for setting up respondent.io account and credentials"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+    
+    user_id = session['user_id']
+    email = session.get('email', 'User')
+    config = load_user_config(user_id)
+    has_account = get_user_onboarding_status(user_id)
+    
+    # Check if credentials are valid
+    has_valid_credentials = False
+    if config and config.get('cookies', {}).get('respondent.session.sid'):
+        try:
+            verification = verify_respondent_authentication(
+                cookies=config.get('cookies', {}),
+                authorization=config.get('authorization')
+            )
+            has_valid_credentials = verification.get('success', False)
+        except Exception:
+            has_valid_credentials = False
+    
+    # Pre-fill form if config exists
+    session_sid = None
+    authorization = None
+    if config and config.get('cookies', {}).get('respondent.session.sid'):
+        session_sid = config['cookies']['respondent.session.sid']
+        authorization = config.get('authorization')
+    
+    return render_template(
+        'onboarding.html',
+        email=email,
+        has_account=has_account,
+        has_valid_credentials=has_valid_credentials,
+        session_sid=session_sid,
+        authorization=authorization,
+        config=config
+    )
 
 
 @bp.route('/projects')
@@ -44,7 +105,23 @@ def projects():
     
     # Check if user has configured session keys
     has_config = config is not None and config.get('cookies', {}).get('respondent.session.sid')
-    show_config_modal = not has_config
+    
+    # Verify credentials are valid, redirect to onboarding if not
+    if has_config:
+        try:
+            verification = verify_respondent_authentication(
+                cookies=config.get('cookies', {}),
+                authorization=config.get('authorization')
+            )
+            if not verification.get('success', False):
+                # Credentials are invalid, redirect to onboarding
+                return redirect(url_for('page.onboarding'))
+        except Exception:
+            # Error verifying, redirect to onboarding
+            return redirect(url_for('page.onboarding'))
+    else:
+        # No credentials configured, redirect to onboarding
+        return redirect(url_for('page.onboarding'))
     
     projects_data = None
     error = None
@@ -68,8 +145,8 @@ def projects():
                     save_user_config(user_id, config, profile_id=profile_id)
                     config['profile_id'] = profile_id
                 else:
-                    # Credentials are invalid, show modal
-                    show_config_modal = True
+                    # Credentials are invalid
+                    pass
             
             if profile_id:
                 # Create authenticated session
@@ -114,13 +191,12 @@ def projects():
                 # Get persistent hidden count from MongoDB
                 hidden_count = get_hidden_count(user_id)
             else:
-                # Unable to determine profile ID, show modal
-                show_config_modal = True
+                # Unable to determine profile ID
+                pass
         except Exception as e:
-            # If authentication fails or API error occurs, show modal
+            # If authentication fails or API error occurs
             import traceback
             print(f"Error fetching projects: {traceback.format_exc()}")
-            show_config_modal = True
     
     # Get cache refresh time and total count
     cache_refreshed_utc = None
@@ -158,7 +234,6 @@ def projects():
         config=config,
         projects=projects_data,
         has_config=has_config,
-        show_config_modal=show_config_modal,
         filters=filters,
         cache_refreshed_utc=cache_refreshed_utc,
         error=error,

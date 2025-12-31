@@ -12,7 +12,7 @@ from datetime import datetime
 
 # Import services
 try:
-    from ..services.user_service import load_user_config, save_user_config, load_user_filters, save_user_filters, update_last_synced
+    from ..services.user_service import load_user_config, save_user_config, load_user_filters, save_user_filters, update_last_synced, update_user_onboarding_status, get_user_onboarding_status
     from ..services.respondent_auth_service import create_respondent_session, verify_respondent_authentication, fetch_and_store_user_profile
     from ..services.project_service import (
         fetch_respondent_projects, fetch_all_respondent_projects, hide_project_via_api,
@@ -36,7 +36,7 @@ try:
     )
     from ..services.topics_service import get_all_topics
 except ImportError:
-    from services.user_service import load_user_config, save_user_config, load_user_filters, save_user_filters, update_last_synced
+    from services.user_service import load_user_config, save_user_config, load_user_filters, save_user_filters, update_last_synced, update_user_onboarding_status, get_user_onboarding_status
     from services.respondent_auth_service import create_respondent_session, verify_respondent_authentication, fetch_and_store_user_profile
     from services.project_service import (
         fetch_respondent_projects, fetch_all_respondent_projects, hide_project_via_api,
@@ -66,6 +66,48 @@ bp = Blueprint('api', __name__, url_prefix='/api')
 preview_hide_progress = {}
 
 
+def extract_session_sid_from_cookie_blob(cookie_string):
+    """Extract respondent.session.sid from a cookie blob string"""
+    if not cookie_string or not isinstance(cookie_string, str):
+        return None
+    
+    cookie_string = cookie_string.strip()
+    
+    # Check if it looks like a cookie blob (contains semicolons and respondent.session.sid)
+    if ';' not in cookie_string or 'respondent.session.sid' not in cookie_string:
+        return None
+    
+    # Split by semicolons to get individual cookies
+    cookies = cookie_string.split(';')
+    
+    # Find the respondent.session.sid cookie
+    for cookie in cookies:
+        cookie = cookie.strip()
+        
+        # Check if this cookie starts with respondent.session.sid=
+        if cookie.startswith('respondent.session.sid='):
+            # Extract the value after the equals sign
+            value = cookie[len('respondent.session.sid='):].strip()
+            return value
+    
+    return None
+
+
+def extract_bearer_token(auth_string):
+    """Extract Bearer token from authorization string"""
+    if not auth_string or not isinstance(auth_string, str):
+        return None
+    
+    auth_string = auth_string.strip()
+    
+    # If it starts with "Bearer ", remove that prefix
+    if auth_string.lower().startswith('bearer '):
+        return auth_string[7:].strip()
+    
+    # Otherwise, return as-is (assuming it's just the token)
+    return auth_string
+
+
 @bp.route('/session-keys', methods=['POST'])
 def save_session_keys():
     """Save user's Respondent.io session keys to MongoDB and test them"""
@@ -76,6 +118,18 @@ def save_session_keys():
         data = request.json
         session_sid = data.get('session_sid', '').strip()
         authorization = data.get('authorization', '').strip()
+        
+        # If session_sid looks like a cookie blob, try to extract it
+        if session_sid and ';' in session_sid and 'respondent.session.sid' in session_sid:
+            extracted = extract_session_sid_from_cookie_blob(session_sid)
+            if extracted:
+                session_sid = extracted
+        
+        # If authorization is provided, ensure it has "Bearer " prefix if it's a token
+        if authorization:
+            extracted = extract_bearer_token(authorization)
+            if extracted:
+                authorization = 'Bearer ' + extracted
         
         if not session_sid:
             return jsonify({'error': 'respondent.session.sid is required'}), 400
@@ -140,6 +194,34 @@ def get_session_keys():
         return jsonify({'cookies': {}, 'authorization': None})
     
     return jsonify(config)
+
+
+@bp.route('/onboarding/has-account', methods=['POST'])
+def save_has_account():
+    """Save user's has_respondent_account status"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        data = request.json
+        has_account = data.get('has_account', False)
+        
+        # Convert to boolean if needed
+        if isinstance(has_account, str):
+            has_account = has_account.lower() in ('true', '1', 'yes', 'on')
+        has_account = bool(has_account)
+        
+        user_id = session['user_id']
+        update_user_onboarding_status(user_id, has_account)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Account status updated successfully',
+            'has_account': has_account
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e) + '\n' + traceback.format_exc()}), 500
 
 
 @bp.route('/filters', methods=['GET'])

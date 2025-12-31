@@ -201,7 +201,7 @@ def register_complete():
             session.pop('registration_email', None)
             session.pop('challenge', None)
             
-            return jsonify({'success': True, 'redirect': url_for('page.dashboard')})
+            return jsonify({'success': True, 'redirect': url_for('page.onboarding')})
         except Exception as e:
             import traceback
             return jsonify({'error': f'Verification failed: {str(e)}\n{traceback.format_exc()}'}), 400

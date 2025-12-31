@@ -173,7 +173,7 @@
                         </div>
                     </div>
                     <div class="profile-dropdown-divider"></div>
-                    <div class="profile-dropdown-item" onclick="openConfigModal(); closeProfileMenu();">
+                    <div class="profile-dropdown-item" onclick="window.location.href='/onboarding'; closeProfileMenu();">
                         <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
                         </svg>
@@ -322,7 +322,7 @@
                 </svg>
                 <h3>Session keys not configured</h3>
                 <p>Click the button below to configure your Respondent.io session keys.</p>
-                <button class="btn-primary" onclick="openConfigModal()" style="margin-top: 16px;">Configure Session Keys</button>
+                <button class="btn-primary" onclick="window.location.href='/onboarding'" style="margin-top: 16px;">Configure Session Keys</button>
             </div>
             {% elif projects and projects.results %}
             <div class="project-list">
@@ -489,44 +489,6 @@
 </div>
 
 <!-- Session Keys Configuration Modal -->
-<div class="modal-overlay" id="configModal" style="display: {% if show_config_modal %}flex{% else %}none{% endif %};">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>
-                Session Keys Configuration
-            </h2>
-            <button class="btn-close-modal" onclick="closeConfigModal()" aria-label="Close">×</button>
-        </div>
-        
-        <div class="modal-body">
-            <div class="error" id="configError"></div>
-            <div class="success" id="configSuccess"></div>
-            
-            <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px;">
-                Provide your Respondent.io session keys to enable API access. You can find these in your browser's Developer Tools (F12) → Network tab when logged into respondent.io.
-            </p>
-            
-            <form id="sessionKeysForm">
-                <div class="form-group">
-                    <label for="modal_session_sid">respondent.session.sid *</label>
-                    <input type="text" id="modal_session_sid" placeholder="s%3AvDYrxyRM_m854jqPq90t05fkyVodoUc-..." name="session_sid" required>
-                    <div class="help-text">The session cookie value from your browser</div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="modal_authorization">Authorization Header</label>
-                    <input type="text" id="modal_authorization" placeholder="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." name="authorization">
-                    <div class="help-text">The Authorization Bearer token from request headers (optional)</div>
-                </div>
-                
-                <div class="modal-actions">
-                    <button type="button" class="btn-secondary" onclick="closeConfigModal()">Cancel</button>
-                    <button type="submit" class="btn-primary" id="modalSaveBtn">Save Session Keys</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 
 <!-- Hide Project Feedback Modal -->
 <div class="modal-overlay" id="hideModal" style="display: none;">
@@ -727,127 +689,6 @@
     }
     
     // Modal functions
-    function openConfigModal() {
-        document.getElementById('configModal').style.display = 'flex';
-        // Load existing config if available
-        {% if config %}
-        const config = {{ config | tojson }};
-        if (config.cookies && config.cookies['respondent.session.sid']) {
-            document.getElementById('modal_session_sid').value = config.cookies['respondent.session.sid'];
-        }
-        if (config.authorization) {
-            document.getElementById('modal_authorization').value = config.authorization;
-        }
-        {% endif %}
-    }
-    
-    function closeConfigModal() {
-        document.getElementById('configModal').style.display = 'none';
-        hideConfigMessage();
-    }
-    
-    // Close modal when clicking outside
-    document.getElementById('configModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeConfigModal();
-        }
-    });
-    
-    // Close modal on Escape key
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeConfigModal();
-        }
-    });
-    
-    function showConfigError(message) {
-        const errorEl = document.getElementById('configError');
-        errorEl.textContent = message;
-        errorEl.classList.add('show');
-        document.getElementById('configSuccess').classList.remove('show');
-    }
-    
-    function showConfigSuccess(message) {
-        const successEl = document.getElementById('configSuccess');
-        successEl.textContent = message;
-        successEl.classList.add('show');
-        document.getElementById('configError').classList.remove('show');
-    }
-    
-    function hideConfigMessage() {
-        document.getElementById('configError').classList.remove('show');
-        document.getElementById('configSuccess').classList.remove('show');
-    }
-    
-    // Handle session keys form submission
-    document.getElementById('sessionKeysForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        hideConfigMessage();
-        
-        const session_sid = document.getElementById('modal_session_sid').value.trim();
-        const authorization = document.getElementById('modal_authorization').value.trim() || null;
-        
-        if (!session_sid) {
-            showConfigError('respondent.session.sid is required');
-            return;
-        }
-        
-        const saveBtn = document.getElementById('modalSaveBtn');
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Saving...';
-        
-        try {
-            const response = await fetch('/api/session-keys', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    session_sid,
-                    authorization
-                })
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to save session keys');
-            }
-            
-            const result = await response.json();
-            
-            // Display verification results
-            if (result.verification) {
-                const verification = result.verification;
-                if (verification.success) {
-                    showConfigSuccess(
-                        `✅ ${result.message}\n` +
-                        `✅ Authentication verified!\n` +
-                        `Profile ID: ${verification.profile_id}\n` +
-                        `First Name: ${verification.first_name}`
-                    );
-                    
-                    // Reload page after a short delay to show projects
-                    setTimeout(() => {
-                        location.reload();
-                    }, 2000);
-                } else {
-                    showConfigError(
-                        `Session keys saved, but verification failed:\n${verification.message}`
-                    );
-                }
-            } else {
-                showConfigSuccess(result.message || 'Session keys saved successfully!');
-                setTimeout(() => {
-                    location.reload();
-                }, 1500);
-            }
-            
-        } catch (error) {
-            showConfigError(error.message || 'Failed to save session keys');
-        } finally {
-            saveBtn.disabled = false;
-            saveBtn.textContent = 'Save Session Keys';
-        }
-    });
-    
     // Load saved hide settings on page load
     window.addEventListener('DOMContentLoaded', () => {
         // Initialize all settings to empty/unchecked by default
