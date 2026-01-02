@@ -8,13 +8,13 @@ from datetime import datetime
 
 # Import services
 try:
-    from ..services.user_service import load_user_config, load_user_filters, save_user_config, get_user_onboarding_status
+    from ..services.user_service import load_user_config, load_user_filters, save_user_config, get_user_onboarding_status, is_user_verified, load_credentials_by_user_id
     from ..services.respondent_auth_service import create_respondent_session, verify_respondent_authentication
     from ..services.project_service import fetch_all_respondent_projects, get_hidden_count
     from ..cache_manager import get_cache_stats
     from ..db import projects_cache_collection
 except ImportError:
-    from services.user_service import load_user_config, load_user_filters, save_user_config, get_user_onboarding_status
+    from services.user_service import load_user_config, load_user_filters, save_user_config, get_user_onboarding_status, is_user_verified, load_credentials_by_user_id
     from services.respondent_auth_service import create_respondent_session, verify_respondent_authentication
     from services.project_service import fetch_all_respondent_projects, get_hidden_count
     from cache_manager import get_cache_stats
@@ -23,12 +23,30 @@ except ImportError:
 bp = Blueprint('page', __name__)
 
 
+def require_verified(f):
+    """Decorator to require email verification"""
+    from functools import wraps
+    
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('auth.login'))
+        
+        user_id = session['user_id']
+        try:
+            if not is_user_verified(user_id):
+                return redirect(url_for('auth.verify_pending'))
+        except Exception:
+            return redirect(url_for('auth.verify_pending'))
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 @bp.route('/dashboard')
+@require_verified
 def dashboard():
     """Dashboard - redirect to projects page if credentials valid, otherwise onboarding"""
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
-    
     user_id = session['user_id']
     config = load_user_config(user_id)
     
@@ -52,11 +70,9 @@ def dashboard():
 
 
 @bp.route('/onboarding')
+@require_verified
 def onboarding():
     """Onboarding page - checklist for setting up respondent.io account and credentials"""
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
-    
     user_id = session['user_id']
     email = session.get('email', 'User')
     config = load_user_config(user_id)
@@ -92,12 +108,49 @@ def onboarding():
     )
 
 
+@bp.route('/account')
+@require_verified
+def account():
+    """Account page - manage passkeys"""
+    user_id = session['user_id']
+    email = session.get('email', 'User')
+    
+    # Load all credentials
+    try:
+        credentials = load_credentials_by_user_id(user_id, rp_id=None)
+        if not credentials:
+            credentials = []
+        elif not isinstance(credentials, list):
+            credentials = [credentials]
+        
+        # Format credentials for display
+        passkeys = []
+        for cred in credentials:
+            cred_id_str = None
+            if cred.get('credential_id'):
+                if isinstance(cred['credential_id'], bytes):
+                    import base64
+                    cred_id_str = base64.urlsafe_b64encode(cred['credential_id']).decode('utf-8').rstrip('=')
+                else:
+                    cred_id_str = str(cred['credential_id'])
+            
+            passkeys.append({
+                'credential_id': cred_id_str,
+                'rp_id': cred.get('rp_id', 'localhost'),
+                'created_at': cred.get('created_at'),
+                'name': cred.get('name', '')
+            })
+    except Exception as e:
+        passkeys = []
+        print(f"Error loading credentials: {e}")
+    
+    return render_template('account.html', email=email, passkeys=passkeys)
+
+
 @bp.route('/projects')
+@require_verified
 def projects():
     """Projects page - list all available projects"""
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
-    
     user_id = session['user_id']
     email = session.get('email', 'User')
     config = load_user_config(user_id)

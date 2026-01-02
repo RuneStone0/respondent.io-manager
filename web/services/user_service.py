@@ -4,8 +4,9 @@ User management service for Respondent.io Manager
 """
 
 import base64
+import secrets
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Import database collections
 try:
@@ -68,6 +69,91 @@ def user_exists(username):
     return user_exists_by_email(username)
 
 
+def generate_verification_token(user_id):
+    """Generate a verification token for email verification"""
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(days=7)  # Token expires in 7 days
+    
+    if users_collection is None:
+        raise Exception("MongoDB connection not available. Please ensure MongoDB is running.")
+    try:
+        users_collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'verification_token': token,
+                    'verification_token_expires': expires_at,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        return token
+    except Exception as e:
+        raise Exception(f"Failed to generate verification token: {e}")
+
+
+def generate_login_token(user_id):
+    """Generate a login token for email-based authentication"""
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(hours=1)  # Token expires in 1 hour
+    
+    if users_collection is None:
+        raise Exception("MongoDB connection not available. Please ensure MongoDB is running.")
+    try:
+        users_collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'login_token': token,
+                    'login_token_expires': expires_at,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        return token
+    except Exception as e:
+        raise Exception(f"Failed to generate login token: {e}")
+
+
+def verify_login_token(user_id, token):
+    """Verify login token. Returns True if successful, False otherwise."""
+    if users_collection is None:
+        raise Exception("MongoDB connection not available. Please ensure MongoDB is running.")
+    try:
+        user_doc = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user_doc:
+            return False
+        
+        stored_token = user_doc.get('login_token')
+        token_expires = user_doc.get('login_token_expires')
+        
+        # Check if token matches and hasn't expired
+        if stored_token != token:
+            return False
+        
+        if token_expires and isinstance(token_expires, datetime):
+            if datetime.utcnow() > token_expires:
+                return False
+        
+        # Clear the login token after use
+        users_collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$unset': {
+                    'login_token': '',
+                    'login_token_expires': ''
+                },
+                '$set': {
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        
+        return True
+    except Exception as e:
+        raise Exception(f"Failed to verify login token: {e}")
+
+
 def create_user(email):
     """Create a new user with email (stored in username field) and return user_id (_id)"""
     if users_collection is None:
@@ -84,12 +170,21 @@ def create_user(email):
         if existing_user:
             return str(existing_user['_id'])
         
+        # Generate verification token
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.utcnow() + timedelta(days=7)
+        
         # Create new user - email is stored in username field for backward compatibility
         result = users_collection.insert_one({
             'username': email,  # Email stored in username field
+            'email_verified': False,
+            'verification_token': token,
+            'verification_token_expires': expires_at,
+            'credentials': [],  # Array for multiple passkeys
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         })
+        
         return str(result.inserted_id)
     except Exception as e:
         error_msg = str(e)
@@ -102,45 +197,109 @@ def create_user(email):
         raise Exception(f"Failed to create user in MongoDB: {e}")
 
 
-def load_credentials_by_user_id(user_id):
-    """Load passkey credentials for a specific user_id from MongoDB (stored in users collection)"""
+def load_credentials_by_user_id(user_id, rp_id=None):
+    """Load passkey credentials for a specific user_id from MongoDB (stored in users collection)
+    
+    Args:
+        user_id: User ID
+        rp_id: Optional relying party ID to filter credentials. If None, returns all credentials.
+               If specified and no matching credential found, returns None for backward compatibility.
+    
+    Returns:
+        If rp_id is None: List of all credentials
+        If rp_id is specified: Single credential dict matching rp_id, or None if not found
+    """
     if users_collection is None:
         raise Exception("MongoDB connection not available. Please ensure MongoDB is running.")
     try:
         user_doc = users_collection.find_one({'_id': ObjectId(user_id)})
-        if not user_doc or 'credential' not in user_doc:
+        if not user_doc:
             return None
         
-        cred_doc = user_doc['credential']
-        cred = {
-            'credential_id': None,
-            'public_key': None,
-            'counter': cred_doc.get('counter', 0)
-        }
-        # Convert base64 strings back to bytes for webauthn library
-        if 'credential_id' in cred_doc and cred_doc['credential_id']:
-            cred_id = cred_doc['credential_id']
-            if isinstance(cred_id, str):
-                # Add padding if needed
-                padding = 4 - (len(cred_id) % 4)
-                if padding != 4:
-                    cred_id += '=' * padding
-                cred['credential_id'] = base64.urlsafe_b64decode(cred_id)
-            else:
-                cred['credential_id'] = cred_id
+        # Check for new credentials array format
+        if 'credentials' in user_doc and isinstance(user_doc['credentials'], list):
+            credentials_list = []
+            for cred_doc in user_doc['credentials']:
+                cred = {
+                    'credential_id': None,
+                    'public_key': None,
+                    'counter': cred_doc.get('counter', 0),
+                    'rp_id': cred_doc.get('rp_id', 'localhost'),
+                    'created_at': cred_doc.get('created_at'),
+                    'name': cred_doc.get('name')
+                }
+                
+                # Convert base64 strings back to bytes for webauthn library
+                if 'credential_id' in cred_doc and cred_doc['credential_id']:
+                    cred_id = cred_doc['credential_id']
+                    if isinstance(cred_id, str):
+                        padding = 4 - (len(cred_id) % 4)
+                        if padding != 4:
+                            cred_id += '=' * padding
+                        cred['credential_id'] = base64.urlsafe_b64decode(cred_id)
+                    else:
+                        cred['credential_id'] = cred_id
+                
+                if 'public_key' in cred_doc and cred_doc['public_key']:
+                    pub_key = cred_doc['public_key']
+                    if isinstance(pub_key, str):
+                        padding = 4 - (len(pub_key) % 4)
+                        if padding != 4:
+                            pub_key += '=' * padding
+                        cred['public_key'] = base64.urlsafe_b64decode(pub_key)
+                    else:
+                        cred['public_key'] = pub_key
+                
+                credentials_list.append(cred)
+            
+            # Filter by rp_id if specified
+            if rp_id is not None:
+                matching_cred = None
+                for cred in credentials_list:
+                    if cred.get('rp_id') == rp_id:
+                        matching_cred = cred
+                        break
+                return matching_cred
+            
+            return credentials_list
         
-        if 'public_key' in cred_doc and cred_doc['public_key']:
-            pub_key = cred_doc['public_key']
-            if isinstance(pub_key, str):
-                # Add padding if needed
-                padding = 4 - (len(pub_key) % 4)
-                if padding != 4:
-                    pub_key += '=' * padding
-                cred['public_key'] = base64.urlsafe_b64decode(pub_key)
-            else:
-                cred['public_key'] = pub_key
+        # Backward compatibility: check for old single credential format
+        if 'credential' in user_doc:
+            cred_doc = user_doc['credential']
+            cred = {
+                'credential_id': None,
+                'public_key': None,
+                'counter': cred_doc.get('counter', 0),
+                'rp_id': 'localhost'  # Default for old credentials
+            }
+            
+            if 'credential_id' in cred_doc and cred_doc['credential_id']:
+                cred_id = cred_doc['credential_id']
+                if isinstance(cred_id, str):
+                    padding = 4 - (len(cred_id) % 4)
+                    if padding != 4:
+                        cred_id += '=' * padding
+                    cred['credential_id'] = base64.urlsafe_b64decode(cred_id)
+                else:
+                    cred['credential_id'] = cred_id
+            
+            if 'public_key' in cred_doc and cred_doc['public_key']:
+                pub_key = cred_doc['public_key']
+                if isinstance(pub_key, str):
+                    padding = 4 - (len(pub_key) % 4)
+                    if padding != 4:
+                        pub_key += '=' * padding
+                    cred['public_key'] = base64.urlsafe_b64decode(pub_key)
+                else:
+                    cred['public_key'] = pub_key
+            
+            # If rp_id filter specified, check if it matches
+            if rp_id is not None and cred.get('rp_id') != rp_id:
+                return None
+            
+            return cred if rp_id is None else (cred if cred.get('rp_id') == rp_id else None)
         
-        return cred
+        return None
     except Exception as e:
         error_msg = str(e)
         if "not allowed" in error_msg.lower() or "AtlasError" in error_msg:
@@ -152,15 +311,23 @@ def load_credentials_by_user_id(user_id):
         raise Exception(f"Failed to load credentials from MongoDB: {e}")
 
 
-def save_credentials_by_user_id(user_id, cred):
-    """Save passkey credentials for a specific user_id to MongoDB (stored in users collection)"""
+def add_credential_to_user(user_id, cred, rp_id=None):
+    """Add a new passkey credential to user's credentials array"""
     if users_collection is None:
         raise Exception("MongoDB connection not available. Please ensure MongoDB is running.")
     try:
+        # Determine rp_id
+        if rp_id is None:
+            rp_id = cred.get('rp_id', 'localhost')
+        else:
+            cred['rp_id'] = rp_id
+        
         # Convert bytes to base64 for storage
         credential_doc = {
             'counter': cred.get('counter', 0),
-            'updated_at': datetime.utcnow()
+            'rp_id': rp_id,
+            'created_at': datetime.utcnow(),
+            'name': cred.get('name')
         }
         
         if 'credential_id' in cred and cred['credential_id']:
@@ -175,12 +342,71 @@ def save_credentials_by_user_id(user_id, cred):
             else:
                 credential_doc['public_key'] = cred['public_key']
         
-        # Update the user document with the credential
+        # Get user document to check format
+        user_doc = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user_doc:
+            raise Exception(f"User {user_id} not found")
+        
+        # If user has old single credential format, migrate it
+        if 'credential' in user_doc and 'credentials' not in user_doc:
+            old_cred = user_doc['credential']
+            old_cred['rp_id'] = 'localhost'  # Default for migrated credentials
+            old_cred['created_at'] = user_doc.get('created_at', datetime.utcnow())
+            users_collection.update_one(
+                {'_id': ObjectId(user_id)},
+                {
+                    '$set': {'credentials': [old_cred]},
+                    '$unset': {'credential': ''}
+                }
+            )
+        
+        # Add new credential to array (avoid duplicates by checking credential_id)
+        credential_id_str = credential_doc['credential_id']
         users_collection.update_one(
             {'_id': ObjectId(user_id)},
             {
+                '$pull': {'credentials': {'credential_id': credential_id_str}},
+                '$set': {'updated_at': datetime.utcnow()}
+            }
+        )
+        
+        users_collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$push': {'credentials': credential_doc},
+                '$set': {'updated_at': datetime.utcnow()}
+            }
+        )
+    except Exception as e:
+        error_msg = str(e)
+        if "not allowed" in error_msg.lower() or "AtlasError" in error_msg:
+            raise Exception(
+                f"MongoDB permissions error: {error_msg}\n"
+                "For MongoDB Atlas, ensure your database user has 'readWrite' role on the database.\n"
+                "You can set this in Atlas: Database Access → Edit User → Database User Privileges → Add Built-in Role → readWrite"
+            )
+        raise Exception(f"Failed to add credential to MongoDB: {e}")
+
+
+def update_credential_counter(user_id, credential_id, new_counter):
+    """Update the counter for a specific credential"""
+    if users_collection is None:
+        raise Exception("MongoDB connection not available. Please ensure MongoDB is running.")
+    try:
+        # Convert credential_id to string if it's bytes
+        if isinstance(credential_id, bytes):
+            credential_id_str = base64.urlsafe_b64encode(credential_id).decode('utf-8').rstrip('=')
+        else:
+            credential_id_str = str(credential_id)
+        
+        users_collection.update_one(
+            {
+                '_id': ObjectId(user_id),
+                'credentials.credential_id': credential_id_str
+            },
+            {
                 '$set': {
-                    'credential': credential_doc,
+                    'credentials.$.counter': new_counter,
                     'updated_at': datetime.utcnow()
                 }
             }
@@ -193,7 +419,49 @@ def save_credentials_by_user_id(user_id, cred):
                 "For MongoDB Atlas, ensure your database user has 'readWrite' role on the database.\n"
                 "You can set this in Atlas: Database Access → Edit User → Database User Privileges → Add Built-in Role → readWrite"
             )
-        raise Exception(f"Failed to save credentials to MongoDB: {e}")
+        raise Exception(f"Failed to update credential counter: {e}")
+
+
+def delete_credential_from_user(user_id, credential_id):
+    """Delete a specific passkey credential from user's credentials array"""
+    if users_collection is None:
+        raise Exception("MongoDB connection not available. Please ensure MongoDB is running.")
+    try:
+        # Convert credential_id to string if it's bytes
+        if isinstance(credential_id, bytes):
+            credential_id_str = base64.urlsafe_b64encode(credential_id).decode('utf-8').rstrip('=')
+        else:
+            credential_id_str = str(credential_id)
+        
+        result = users_collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$pull': {'credentials': {'credential_id': credential_id_str}},
+                '$set': {'updated_at': datetime.utcnow()}
+            }
+        )
+        
+        if result.modified_count == 0:
+            raise Exception("Credential not found or already deleted")
+        
+        return True
+    except Exception as e:
+        error_msg = str(e)
+        if "not allowed" in error_msg.lower() or "AtlasError" in error_msg:
+            raise Exception(
+                f"MongoDB permissions error: {error_msg}\n"
+                "For MongoDB Atlas, ensure your database user has 'readWrite' role on the database.\n"
+                "You can set this in Atlas: Database Access → Edit User → Database User Privileges → Add Built-in Role → readWrite"
+            )
+        raise Exception(f"Failed to delete credential from MongoDB: {e}")
+
+
+# Backward compatibility function
+def save_credentials_by_user_id(user_id, cred):
+    """Legacy function - use add_credential_to_user instead. Kept for backward compatibility."""
+    # Try to determine rp_id from cred or default to localhost
+    rp_id = cred.get('rp_id', 'localhost')
+    return add_credential_to_user(user_id, cred, rp_id)
 
 
 def load_user_config(user_id):
@@ -453,4 +721,70 @@ def get_user_onboarding_status(user_id):
     except Exception as e:
         print(f"Error getting onboarding status: {e}")
         return None
+
+
+def get_user_verification_status(user_id):
+    """Check if user's email is verified"""
+    if users_collection is None:
+        raise Exception("MongoDB connection not available. Please ensure MongoDB is running.")
+    try:
+        user_doc = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user_doc:
+            return False
+        return user_doc.get('email_verified', False)
+    except Exception as e:
+        raise Exception(f"Failed to get verification status: {e}")
+
+
+def is_user_verified(user_id):
+    """Quick check for middleware - returns boolean, raises if user not found"""
+    if users_collection is None:
+        raise Exception("MongoDB connection not available. Please ensure MongoDB is running.")
+    try:
+        user_doc = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user_doc:
+            raise Exception(f"User {user_id} not found")
+        return user_doc.get('email_verified', False)
+    except Exception as e:
+        raise Exception(f"Failed to check verification status: {e}")
+
+
+def verify_user_email(user_id, token):
+    """Verify user email with token. Returns True if successful, False otherwise."""
+    if users_collection is None:
+        raise Exception("MongoDB connection not available. Please ensure MongoDB is running.")
+    try:
+        user_doc = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user_doc:
+            return False
+        
+        stored_token = user_doc.get('verification_token')
+        token_expires = user_doc.get('verification_token_expires')
+        
+        # Check if token matches and hasn't expired
+        if stored_token != token:
+            return False
+        
+        if token_expires and isinstance(token_expires, datetime):
+            if datetime.utcnow() > token_expires:
+                return False
+        
+        # Verify the email
+        users_collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'email_verified': True,
+                    'updated_at': datetime.utcnow()
+                },
+                '$unset': {
+                    'verification_token': '',
+                    'verification_token_expires': ''
+                }
+            }
+        )
+        
+        return True
+    except Exception as e:
+        raise Exception(f"Failed to verify email: {e}")
 

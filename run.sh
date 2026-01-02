@@ -53,6 +53,7 @@ if [ "$MODE" == "https" ]; then
 
     # Run with gunicorn (better SSL support than Flask dev server)
     # Suppress SSL certificate warnings for local development with self-signed certs
+    # --reload enables auto-reload on code changes (like Flask debug mode)
     PYTHONWARNINGS="ignore::ssl.SSLError" gunicorn \
         --bind $HOST:$PORT \
         --workers 1 \
@@ -63,6 +64,7 @@ if [ "$MODE" == "https" ]; then
         --access-logfile - \
         --error-logfile - \
         --log-level info \
+        --reload \
         web.app:app
 else
     echo "Starting Flask app with HTTP on $HOST:$PORT"

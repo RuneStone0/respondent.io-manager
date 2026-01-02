@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+
+{% block title %}Account - Respondent Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-content {
+        flex: 1;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        max-width: 1200px;
+        margin: 0 auto;
+        width: 100%;
+    }
+    
+    .header {
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        padding: 20px 30px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 8px var(--shadow);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    
+    .logo {
+        width: 40px;
+        height: 40px;
+        background: var(--accent-purple);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 20px;
+    }
+    
+    .header-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+        transition: color 0.3s ease;
+    }
+    
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    
+    .profile-menu-container {
+        position: relative;
+    }
+    
+    .profile-icon-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s ease;
+    }
+    
+    .profile-icon-btn:hover {
+        transform: scale(1.05);
+    }
+    
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #ffd700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .profile-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        background: var(--bg-secondary);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        min-width: 240px;
+        z-index: 1000;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .profile-dropdown.show {
+        display: flex;
+    }
+    
+    .profile-dropdown-header {
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--bg-primary);
+    }
+    
+    .profile-dropdown-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #ffd700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .profile-dropdown-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .profile-dropdown-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 14px;
+    }
+    
+    .profile-dropdown-divider {
+        height: 1px;
+        background: var(--border-color);
+        margin: 4px 0;
+    }
+    
+    .profile-dropdown-item {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--text-primary);
+        text-decoration: none;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+    
+    .profile-dropdown-item:hover {
+        background: var(--bg-primary);
+    }
+    
+    .account-container {
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 8px var(--shadow);
+    }
+    
+    .account-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 24px;
+    }
+    
+    .passkeys-section {
+        margin-bottom: 32px;
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    
+    .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .add-passkey-btn {
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.3s ease;
+    }
+    
+    .add-passkey-btn:hover {
+        opacity: 0.9;
+    }
+    
+    .add-passkey-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .passkeys-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .passkey-item {
+        background: var(--bg-primary);
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        padding: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .passkey-info {
+        flex: 1;
+    }
+    
+    .passkey-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .passkey-details {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+    
+    .passkey-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .delete-btn {
+        padding: 6px 12px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: opacity 0.3s ease;
+    }
+    
+    .delete-btn:hover {
+        opacity: 0.9;
+    }
+    
+    .delete-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-secondary);
+    }
+    
+    .error-message {
+        background: #fee;
+        color: #c33;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .success-message {
+        background: #efe;
+        color: #3c3;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="main-content">
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">R</div>
+            <div class="header-title">Respondent Pro</div>
+        </div>
+        <div class="header-right">
+            <div class="profile-menu-container">
+                <button class="profile-icon-btn" onclick="toggleProfileMenu()" aria-label="Profile menu">
+                    <div class="user-avatar">{{ email[0].upper() if email else 'U' }}</div>
+                </button>
+                <div class="profile-dropdown" id="profileDropdown">
+                    <div class="profile-dropdown-header">
+                        <div class="profile-dropdown-avatar">{{ email[0].upper() if email else 'U' }}</div>
+                        <div class="profile-dropdown-info">
+                            <div class="profile-dropdown-name">{{ email }}</div>
+                        </div>
+                    </div>
+                    <div class="profile-dropdown-divider"></div>
+                    <div class="profile-dropdown-item" onclick="window.location.href='/onboarding'; closeProfileMenu();">
+                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>Onboarding</span>
+                    </div>
+                    <div class="profile-dropdown-item" onclick="window.location.href='/account'; closeProfileMenu();">
+                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>Account</span>
+                    </div>
+                    <div class="profile-dropdown-divider"></div>
+                    <a href="/logout" class="profile-dropdown-item profile-dropdown-logout">
+                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm11 4.414l-4.293 4.293a1 1 0 01-1.414 0L4 8.414V15h10V7.414zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="account-container">
+        <h1 class="account-title">Account Settings</h1>
+        
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+        <div id="successMessage" class="success-message" style="display: none;"></div>
+        
+        <div class="passkeys-section">
+            <div class="section-header">
+                <h2 class="section-title">Passkeys</h2>
+                <button id="addPasskeyBtn" class="add-passkey-btn" onclick="addPasskey()">Add Passkey</button>
+            </div>
+            
+            <div id="passkeysList" class="passkeys-list">
+                {% if passkeys %}
+                    {% for passkey in passkeys %}
+                    <div class="passkey-item" data-credential-id="{{ passkey.credential_id }}">
+                        <div class="passkey-info">
+                            <div class="passkey-name">{{ passkey.name or 'Unnamed Passkey' }}</div>
+                            <div class="passkey-details">
+                                Domain: {{ passkey.rp_id }}
+                                {% if passkey.created_at %}
+                                • Created: {{ passkey.created_at.strftime('%Y-%m-%d') if passkey.created_at else 'Unknown' }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="passkey-actions">
+                            <button class="delete-btn" onclick="deletePasskey('{{ passkey.credential_id }}')" {% if passkeys|length <= 1 %}disabled title="Cannot delete last passkey"{% endif %}>Delete</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <p>No passkeys registered yet.</p>
+                        <p style="margin-top: 8px; font-size: 14px;">Click "Add Passkey" to register a new passkey for this domain.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/account.js') }}"></script>
+<script>
+function toggleProfileMenu() {
+    const dropdown = document.getElementById('profileDropdown');
+    dropdown.classList.toggle('show');
+}
+
+function closeProfileMenu() {
+    const dropdown = document.getElementById('profileDropdown');
+    dropdown.classList.remove('show');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const container = document.querySelector('.profile-menu-container');
+    const dropdown = document.getElementById('profileDropdown');
+    if (container && !container.contains(event.target) && dropdown.classList.contains('show')) {
+        dropdown.classList.remove('show');
+    }
+});
+</script>
+{% endblock %}

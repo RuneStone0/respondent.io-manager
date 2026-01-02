@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Your Email - Respondent Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: var(--bg-gradient);
+        padding: 12px;
+        min-height: 100vh;
+    }
+    
+    .verify-container {
+        max-width: 500px;
+        margin: 50px auto;
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        padding: 40px;
+        box-shadow: 0 4px 20px var(--shadow);
+    }
+    
+    .verify-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 40px;
+    }
+    
+    .verify-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text-primary);
+        text-align: center;
+        margin-bottom: 12px;
+    }
+    
+    .verify-message {
+        color: var(--text-secondary);
+        text-align: center;
+        margin-bottom: 24px;
+        line-height: 1.6;
+    }
+    
+    .verify-email {
+        background: var(--bg-primary);
+        padding: 12px;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 24px;
+    }
+    
+    .resend-button {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.3s ease;
+    }
+    
+    .resend-button:hover {
+        opacity: 0.9;
+    }
+    
+    .resend-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .error-message {
+        background: #fee;
+        color: #c33;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    .success-message {
+        background: #efe;
+        color: #3c3;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    .instructions {
+        background: var(--bg-primary);
+        padding: 16px;
+        border-radius: 8px;
+        margin-top: 24px;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+    
+    .instructions ol {
+        margin: 12px 0;
+        padding-left: 20px;
+    }
+    
+    .instructions li {
+        margin: 8px 0;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="verify-container">
+    <div class="verify-icon">✉️</div>
+    <h1 class="verify-title">Verify Your Email</h1>
+    <p class="verify-message">
+        We've sent a verification email to:
+    </p>
+    <div class="verify-email">{{ email }}</div>
+    
+    {% if error %}
+    <div class="error-message">{{ error }}</div>
+    {% endif %}
+    
+    <div id="successMessage" class="success-message" style="display: none;"></div>
+    
+    <button id="resendButton" class="resend-button" onclick="resendVerificationEmail()">
+        Resend Verification Email
+    </button>
+    
+    <div class="instructions">
+        <strong>Instructions:</strong>
+        <ol>
+            <li>Check your email inbox (and spam folder)</li>
+            <li>Click the verification link in the email</li>
+            <li>You'll be automatically redirected to your dashboard</li>
+        </ol>
+        <p style="margin-top: 12px; font-size: 12px; color: var(--text-secondary);">
+            The verification link expires in 7 days.
+        </p>
+    </div>
+</div>
+
+<script>
+async function resendVerificationEmail() {
+    const button = document.getElementById('resendButton');
+    const successMessage = document.getElementById('successMessage');
+    
+    button.disabled = true;
+    button.textContent = 'Sending...';
+    
+    try {
+        const response = await fetch('/api/verify-email/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            successMessage.textContent = 'Verification email sent! Please check your inbox.';
+            successMessage.style.display = 'block';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 5000);
+        } else {
+            alert('Error: ' + (data.error || 'Failed to send email'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Resend Verification Email';
+    }
+}
+</script>
+{% endblock %}

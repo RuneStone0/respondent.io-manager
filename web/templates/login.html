@@ -350,7 +350,7 @@
                 <input type="email" id="authEmail" placeholder="Enter your email" autocomplete="email">
             </div>
             <div class="button-group">
-                <button class="btn-primary" onclick="authenticate()">Continue</button>
+                <button class="btn-primary" id="continueBtn">Continue</button>
             </div>
             <div class="loading" id="authLoading">Authenticating with your passkey...</div>
         </div>
@@ -389,6 +389,31 @@
         return emailRegex.test(email);
     }
     
+    function showError(message) {
+        const errorDiv = document.getElementById('error');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        const successDiv = document.getElementById('success');
+        if (successDiv) successDiv.style.display = 'none';
+    }
+    
+    function showSuccess(message) {
+        const successDiv = document.getElementById('success');
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+        const errorDiv = document.getElementById('error');
+        if (errorDiv) errorDiv.style.display = 'none';
+    }
+    
+    function hideMessage() {
+        const errorDiv = document.getElementById('error');
+        const successDiv = document.getElementById('success');
+        if (errorDiv) errorDiv.style.display = 'none';
+        if (successDiv) successDiv.style.display = 'none';
+    }
+    
+    let emailLoginMode = false;
+    
     async function authenticate() {
         const email = document.getElementById('authEmail').value.trim();
         if (!email) {
@@ -397,6 +422,12 @@
         }
         if (!validateEmail(email)) {
             showError('Please enter a valid email address');
+            return;
+        }
+        
+        // If in email login mode, send email login code
+        if (emailLoginMode) {
+            await sendLoginEmail(email);
             return;
         }
         
@@ -413,10 +444,41 @@
             
             if (loginResponse.ok) {
                 // User exists, proceed with login
-                await handleLogin(email, await loginResponse.json());
+                // Check content type before parsing JSON
+                const loginContentType = loginResponse.headers.get('content-type');
+                let loginData;
+                if (loginContentType && loginContentType.includes('application/json')) {
+                    loginData = await loginResponse.json();
+                } else {
+                    const text = await loginResponse.text();
+                    throw new Error(`Invalid response: ${text.substring(0, 100)}`);
+                }
+                await handleLogin(email, loginData);
             } else {
-                const error = await loginResponse.json();
-                if (error.error === 'User not found' || loginResponse.status === 404) {
+                // Check content type before parsing JSON
+                const errorContentType = loginResponse.headers.get('content-type');
+                let error;
+                if (errorContentType && errorContentType.includes('application/json')) {
+                    error = await loginResponse.json();
+                } else {
+                    const text = await loginResponse.text();
+                    throw new Error(`Login failed: ${text.substring(0, 100)}`);
+                }
+                
+                // If passkey failed and email login is available, switch to email login mode
+                if (error.can_login_via_email || error.error === 'No passkey for this domain' || error.error === 'No credentials found for user') {
+                    // Switch to email login mode
+                    emailLoginMode = true;
+                    const continueBtn = document.getElementById('continueBtn');
+                    if (continueBtn) {
+                        continueBtn.textContent = 'Email Login Code';
+                    }
+                    document.getElementById('authLoading').classList.remove('show');
+                    showError('No passkey found. Click "Email Login Code" to receive a login link.');
+                    return;
+                }
+                
+                if (error.error === 'User not found' || (loginResponse.status === 404 && !error.user_exists)) {
                     // User doesn't exist, proceed with registration
                     await handleRegister(email);
                 } else {
@@ -425,7 +487,17 @@
             }
         } catch (error) {
             console.error('Authentication error:', error);
-            showError(error.message || 'Authentication failed. Please try again.');
+            // If it's a passkey error and we can use email login, switch mode
+            if (error.message && (error.message.includes('passkey') || error.message.includes('credential'))) {
+                emailLoginMode = true;
+                const continueBtn = document.getElementById('continueBtn');
+                if (continueBtn) {
+                    continueBtn.textContent = 'Email Login Code';
+                }
+                showError('No passkey found. Click "Email Login Code" to receive a login link.');
+            } else {
+                showError(error.message || 'Authentication failed. Please try again.');
+            }
         } finally {
             document.getElementById('authLoading').classList.remove('show');
         }
@@ -494,11 +566,28 @@
             });
             
             if (!completeResponse.ok) {
-                const error = await completeResponse.json();
+                // Check content type before parsing JSON
+                const contentType = completeResponse.headers.get('content-type');
+                let error;
+                if (contentType && contentType.includes('application/json')) {
+                    error = await completeResponse.json();
+                } else {
+                    const text = await completeResponse.text();
+                    throw new Error(`Authentication failed: ${text.substring(0, 100)}`);
+                }
                 throw new Error(error.error || 'Authentication failed');
             }
             
-            const result = await completeResponse.json();
+            // Check content type before parsing JSON
+            const resultContentType = completeResponse.headers.get('content-type');
+            let result;
+            if (resultContentType && resultContentType.includes('application/json')) {
+                result = await completeResponse.json();
+            } else {
+                const text = await completeResponse.text();
+                throw new Error(`Invalid response: ${text.substring(0, 100)}`);
+            }
+            
             if (result.success) {
                 showSuccess('Login successful! Redirecting...');
                 setTimeout(() => {
@@ -521,11 +610,40 @@
             });
             
             if (!beginResponse.ok) {
-                const error = await beginResponse.json();
+                // Check content type before parsing JSON
+                const contentType = beginResponse.headers.get('content-type');
+                let error;
+                if (contentType && contentType.includes('application/json')) {
+                    error = await beginResponse.json();
+                } else {
+                    const text = await beginResponse.text();
+                    throw new Error(`Registration failed: ${text.substring(0, 100)}`);
+                }
+                
+                // If email already registered and user has credentials, switch to email login mode
+                if (error.error && error.error.includes('Email already registered')) {
+                    // Switch to email login mode
+                    emailLoginMode = true;
+                    const continueBtn = document.getElementById('continueBtn');
+                    if (continueBtn) {
+                        continueBtn.textContent = 'Email Login Code';
+                    }
+                    document.getElementById('authLoading').classList.remove('show');
+                    showError('Email already registered. Click "Email Login Code" to receive a login link.');
+                    return;
+                }
                 throw new Error(error.error || 'Registration failed');
             }
             
-            const options = await beginResponse.json();
+            // Check content type before parsing JSON
+            const optionsContentType = beginResponse.headers.get('content-type');
+            let options;
+            if (optionsContentType && optionsContentType.includes('application/json')) {
+                options = await beginResponse.json();
+            } else {
+                const text = await beginResponse.text();
+                throw new Error(`Invalid response: ${text.substring(0, 100)}`);
+            }
             
             // Check if WebAuthn API is available
             if (!navigator.credentials || !navigator.credentials.create) {
@@ -585,11 +703,28 @@
             });
             
             if (!completeResponse.ok) {
-                const error = await completeResponse.json();
+                // Check content type before parsing JSON
+                const errorContentType = completeResponse.headers.get('content-type');
+                let error;
+                if (errorContentType && errorContentType.includes('application/json')) {
+                    error = await completeResponse.json();
+                } else {
+                    const text = await completeResponse.text();
+                    throw new Error(`Registration failed: ${text.substring(0, 100)}`);
+                }
                 throw new Error(error.error || 'Registration failed');
             }
             
-            const result = await completeResponse.json();
+            // Check content type before parsing JSON
+            const resultContentType = completeResponse.headers.get('content-type');
+            let result;
+            if (resultContentType && resultContentType.includes('application/json')) {
+                result = await completeResponse.json();
+            } else {
+                const text = await completeResponse.text();
+                throw new Error(`Invalid response: ${text.substring(0, 100)}`);
+            }
+            
             if (result.success) {
                 showSuccess('Registration successful! Redirecting...');
                 setTimeout(() => {
@@ -602,7 +737,7 @@
         }
     }
     
-    // Allow Enter key to submit
+    // Allow Enter key to submit and setup button click
     document.addEventListener('DOMContentLoaded', () => {
         const authEmail = document.getElementById('authEmail');
         if (authEmail) {
@@ -610,7 +745,69 @@
                 if (e.key === 'Enter') authenticate();
             });
         }
+        
+        const continueBtn = document.getElementById('continueBtn');
+        if (continueBtn) {
+            continueBtn.addEventListener('click', authenticate);
+        }
     });
+    
+    async function sendLoginEmail(email) {
+        try {
+            hideMessage();
+            document.getElementById('authLoading').classList.add('show');
+            document.getElementById('authLoading').textContent = 'Sending login link...';
+            
+            const response = await fetch('/api/login/email/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            
+            // Check content type before parsing JSON
+            const responseContentType = response.headers.get('content-type');
+            if (!responseContentType || !responseContentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`Server returned ${response.status}: ${text.substring(0, 100)}`);
+            }
+            
+            if (!response.ok) {
+                let error;
+                if (responseContentType && responseContentType.includes('application/json')) {
+                    error = await response.json();
+                } else {
+                    const text = await response.text();
+                    throw new Error(`Failed to send login email: ${text.substring(0, 100)}`);
+                }
+                throw new Error(error.error || 'Failed to send login email');
+            }
+            
+            // Parse JSON response
+            let result;
+            if (responseContentType && responseContentType.includes('application/json')) {
+                result = await response.json();
+            } else {
+                const text = await response.text();
+                throw new Error(`Invalid response: ${text.substring(0, 100)}`);
+            }
+            
+            showSuccess('Login link sent! Please check your email and click the link to log in. You\'ll then be able to add a passkey for this domain.');
+            document.getElementById('authEmail').value = '';
+            // Reset button text
+            emailLoginMode = false;
+            const continueBtn = document.getElementById('continueBtn');
+            if (continueBtn) {
+                continueBtn.textContent = 'Continue';
+            }
+        } catch (error) {
+            console.error('Error sending login email:', error);
+            showError('Error: ' + error.message);
+        } finally {
+            document.getElementById('authLoading').classList.remove('show');
+            document.getElementById('authLoading').textContent = 'Authenticating with your passkey...';
+        }
+    }
+    
 </script>
 {% endblock %}
 
