@@ -18,14 +18,14 @@ try:
         users_collection, session_keys_collection, projects_cache_collection,
         user_preferences_collection, hidden_projects_log_collection,
         hide_feedback_collection, category_recommendations_collection,
-        user_profiles_collection, mongo_available
+        user_profiles_collection, mongo_available, client, db
     )
 except ImportError:
     from db import (
         users_collection, session_keys_collection, projects_cache_collection,
         user_preferences_collection, hidden_projects_log_collection,
         hide_feedback_collection, category_recommendations_collection,
-        user_profiles_collection, mongo_available
+        user_profiles_collection, mongo_available, client, db
     )
 
 # Import user service
@@ -128,6 +128,127 @@ app = Flask(__name__,
             static_folder=str(BASE_DIR / 'static'),
             static_url_path='/static')
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """
+    Health check endpoint that reports status of database, Grok API, and application.
+    Returns 200 if all services are healthy, 503 if any critical service is down.
+    """
+    overall_status = "healthy"
+    http_status = 200
+    services = {}
+    
+    # Database health check
+    db_status = "healthy"
+    db_available = False
+    db_response_time_ms = None
+    db_error = None
+    
+    try:
+        if mongo_available and client is not None and db is not None:
+            start_time = time.time()
+            # Perform a lightweight ping operation
+            db.command('ping')
+            db_response_time_ms = round((time.time() - start_time) * 1000, 2)
+            db_available = True
+        else:
+            db_status = "unhealthy"
+            db_error = "MongoDB connection not available"
+            overall_status = "unhealthy"
+            http_status = 503
+    except Exception as e:
+        db_status = "unhealthy"
+        db_available = False
+        db_error = str(e)
+        overall_status = "unhealthy"
+        http_status = 503
+    
+    services['database'] = {
+        'status': db_status,
+        'available': db_available,
+        'response_time_ms': db_response_time_ms,
+        'error': db_error
+    }
+    
+    # Grok API health check
+    grok_status = "healthy"
+    grok_api_key_configured = False
+    grok_reachable = False
+    grok_error = None
+    
+    try:
+        grok_api_key = os.environ.get('GROK_API_KEY')
+        grok_api_url = os.environ.get('GROK_API_URL', 'https://api.x.ai/v1/chat/completions')
+        
+        if grok_api_key:
+            grok_api_key_configured = True
+            
+            # Perform a lightweight connectivity test with timeout
+            # Test if we can reach the API domain (not making a full API call)
+            try:
+                from urllib.parse import urlparse
+                parsed_url = urlparse(grok_api_url)
+                base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+                
+                # Make a simple HEAD request to check connectivity
+                test_response = requests.head(
+                    base_url,
+                    timeout=2,
+                    allow_redirects=True
+                )
+                # If we get any response (even 404/403), the service is reachable
+                grok_reachable = True
+            except requests.exceptions.Timeout:
+                grok_error = "Connection timeout"
+                grok_status = "degraded"
+                grok_reachable = False
+            except requests.exceptions.ConnectionError:
+                grok_error = "Connection error - API unreachable"
+                grok_status = "degraded"
+                grok_reachable = False
+            except Exception as e:
+                # For other errors, assume reachable if we got past connection
+                # (e.g., 403/404 means service is up but endpoint/auth issue)
+                if "timeout" in str(e).lower() or "connection" in str(e).lower():
+                    grok_reachable = False
+                    grok_error = str(e)
+                    grok_status = "degraded"
+                else:
+                    grok_reachable = True
+        else:
+            grok_error = "GROK_API_KEY not configured"
+            grok_status = "degraded"
+            # Grok is optional, so don't mark overall as unhealthy
+    except Exception as e:
+        grok_error = str(e)
+        grok_status = "degraded"
+        # Grok is optional, so don't mark overall as unhealthy
+    
+    services['grok'] = {
+        'status': grok_status,
+        'api_key_configured': grok_api_key_configured,
+        'reachable': grok_reachable,
+        'error': grok_error
+    }
+    
+    # If database is down, mark overall as unhealthy
+    if db_status == "unhealthy":
+        overall_status = "unhealthy"
+        http_status = 503
+    elif grok_status == "degraded" and db_status == "healthy":
+        overall_status = "degraded"
+        # Still return 200 for degraded (non-critical service)
+    
+    response = {
+        'status': overall_status,
+        'timestamp': datetime.now(timezone.utc).isoformat(),
+        'services': services
+    }
+    
+    return jsonify(response), http_status
+
 
 # Register blueprints
 try:
