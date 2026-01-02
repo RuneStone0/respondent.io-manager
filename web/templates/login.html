@@ -433,6 +433,17 @@
     
     async function handleLogin(email, options) {
         try {
+            // Check if WebAuthn API is available
+            if (!navigator.credentials || !navigator.credentials.get) {
+                const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                const isSecure = window.location.protocol === 'https:' || isLocalhost;
+                if (!isSecure) {
+                    throw new Error('WebAuthn requires HTTPS. Please access this site via HTTPS or use localhost. For local development, you can use localhost:5000 or set up HTTPS with a self-signed certificate.');
+                } else {
+                    throw new Error('WebAuthn API is not available in this browser. Please use a modern browser that supports WebAuthn (Chrome, Firefox, Safari, or Edge).');
+                }
+            }
+            
             // Validate required fields
             if (!options.challenge) {
                 throw new Error('Missing challenge in options');
@@ -515,6 +526,17 @@
             }
             
             const options = await beginResponse.json();
+            
+            // Check if WebAuthn API is available
+            if (!navigator.credentials || !navigator.credentials.create) {
+                const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                const isSecure = window.location.protocol === 'https:' || isLocalhost;
+                if (!isSecure) {
+                    throw new Error('WebAuthn requires HTTPS. Please access this site via HTTPS or use localhost. For local development, you can use localhost:5000 or set up HTTPS with a self-signed certificate.');
+                } else {
+                    throw new Error('WebAuthn API is not available in this browser. Please use a modern browser that supports WebAuthn (Chrome, Firefox, Safari, or Edge).');
+                }
+            }
             
             // Validate required fields
             if (!options.challenge) {

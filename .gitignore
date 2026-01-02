@@ -26,6 +26,12 @@ config.json
 # Environment variables
 .env
 
+# SSL certificates (local development only)
+certs/
+*.crt
+*.key
+*.csr
+
 # IDE
 .vscode/
 .idea/
