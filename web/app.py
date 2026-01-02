@@ -10,7 +10,7 @@ import requests
 import logging
 import warnings
 from pathlib import Path
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
@@ -279,6 +279,16 @@ def health_check():
     }
     
     return jsonify(response), http_status
+
+
+@app.route('/favicon.ico')
+def favicon():
+    """Serve the favicon"""
+    return send_from_directory(
+        str(BASE_DIR / 'static' / 'img'),
+        'favicon.ico',
+        mimetype='image/vnd.microsoft.icon'
+    )
 
 
 # Register blueprints
