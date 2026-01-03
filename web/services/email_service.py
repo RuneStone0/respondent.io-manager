@@ -187,3 +187,130 @@ If you didn't request this login link, you can safely ignore this email.
         html_body=html_body,
         text_body=text_body
     )
+
+
+def send_weekly_summary_email(email, project_count):
+    """Send weekly project summary email"""
+    config = get_smtp_config()
+    projects_url = f"{config['app_url']}/projects"
+    notifications_url = f"{config['app_url']}/notifications"
+    
+    # Load email template
+    template_path = TEMPLATES_DIR / 'weekly_summary.html'
+    if template_path.exists():
+        with open(template_path, 'r', encoding='utf-8') as f:
+            html_template = f.read()
+    else:
+        # Fallback template if file doesn't exist
+        html_template = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Weekly Project Summary - Respondent Pro</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #4CAF50;">Weekly Project Summary</h1>
+                <p>You have {project_count} project{plural} available that {is_are} not hidden.</p>
+                <p><a href="{projects_url}">View Projects</a></p>
+            </div>
+        </body>
+        </html>
+        """
+    
+    # Determine plural and verb form
+    plural = 's' if project_count != 1 else ''
+    is_are = 'are' if project_count != 1 else 'is'
+    
+    # Render template with variables
+    html_body = html_template.replace('{project_count}', str(project_count))
+    html_body = html_body.replace('{plural}', plural)
+    html_body = html_body.replace('{is_are}', is_are)
+    html_body = html_body.replace('{projects_url}', projects_url)
+    html_body = html_body.replace('{notifications_url}', notifications_url)
+    
+    # Plain text version
+    text_body = f"""Weekly Project Summary - Respondent Pro
+
+Hello!
+
+You have {project_count} project{plural} available that {is_are} not hidden.
+
+View your projects: {projects_url}
+
+This is a weekly reminder to help you stay on top of new opportunities.
+
+You can manage your notification preferences: {notifications_url}
+
+© 2024 Respondent Pro. All rights reserved.
+"""
+    
+    return send_email(
+        to_email=email,
+        subject="Weekly Project Summary - Respondent Pro",
+        html_body=html_body,
+        text_body=text_body
+    )
+
+
+def send_session_token_expired_email(email):
+    """Send session token expired notification email"""
+    config = get_smtp_config()
+    onboarding_url = f"{config['app_url']}/onboarding"
+    notifications_url = f"{config['app_url']}/notifications"
+    
+    # Load email template
+    template_path = TEMPLATES_DIR / 'session_token_expired.html'
+    if template_path.exists():
+        with open(template_path, 'r', encoding='utf-8') as f:
+            html_template = f.read()
+    else:
+        # Fallback template if file doesn't exist
+        html_template = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Session Token Expired - Respondent Pro</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #d32f2f;">Important: Session Token Expired</h1>
+                <p>Your Respondent.io session token is no longer valid. Please update your credentials.</p>
+                <p><a href="{onboarding_url}">Update Credentials</a></p>
+            </div>
+        </body>
+        </html>
+        """
+    
+    # Render template with variables
+    html_body = html_template.replace('{onboarding_url}', onboarding_url)
+    html_body = html_body.replace('{notifications_url}', notifications_url)
+    
+    # Plain text version
+    text_body = f"""Important: Session Token Expired - Respondent Pro
+
+Hello!
+
+We've detected that your Respondent.io session token is no longer valid. This means background tasks that filter projects for you may not be working correctly.
+
+Why is this important?
+Session tokens are used when running background tasks to filter projects for you. Without a valid token, these tasks cannot access your Respondent.io account.
+
+To fix this, please update your session credentials:
+{onboarding_url}
+
+After updating your credentials, background tasks will resume automatically.
+
+You can manage your notification preferences: {notifications_url}
+
+© 2024 Respondent Pro. All rights reserved.
+"""
+    
+    return send_email(
+        to_email=email,
+        subject="Important: Session Token Expired - Respondent Pro",
+        html_body=html_body,
+        text_body=text_body
+    )

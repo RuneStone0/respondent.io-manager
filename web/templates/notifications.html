@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications - Respondent Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-message {
+        @apply bg-error text-error-content p-3 rounded-lg mb-5 hidden;
+    }
+    .success-message {
+        @apply bg-success text-success-content p-3 rounded-lg mb-5 hidden;
+    }
+    .btn-loading {
+        position: relative;
+        pointer-events: none;
+        opacity: 0.7;
+    }
+    .btn-loading .btn-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+    .btn-loading .btn-text {
+        opacity: 0;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="flex-1 min-h-screen flex flex-col p-6 max-w-6xl mx-auto w-full">
+    {% include 'partials/header.html' %}
+    
+    <div class="bg-base-100 rounded-xl p-8 shadow-lg mt-6">
+        <h1 class="text-2xl font-semibold text-base-content mb-6">Notification Settings</h1>
+        
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+        
+        <form id="notificationsForm" onsubmit="saveNotifications(event)">
+            <div class="space-y-8">
+                <!-- Weekly Project Summary -->
+                <div class="bg-base-200 rounded-lg p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex-1">
+                            <h2 class="text-lg font-semibold text-base-content mb-2">Weekly Project Summary</h2>
+                            <p class="text-sm text-base-content/70">
+                                Receive a weekly email reminder with the count of open projects available to you.
+                            </p>
+                        </div>
+                        <label class="cursor-pointer">
+                            <input type="checkbox" id="weeklyEnabled" class="toggle toggle-primary" checked />
+                        </label>
+                    </div>
+                    
+                    <div class="mt-4" id="weeklyDaySelector">
+                        <label class="label">
+                            <span class="label-text text-base-content">Day of week</span>
+                        </label>
+                        <select id="weeklyDayOfWeek" class="select select-bordered w-full max-w-xs">
+                            <option value="0">Sunday</option>
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Session Token Expired -->
+                <div class="bg-base-200 rounded-lg p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex-1">
+                            <h2 class="text-lg font-semibold text-base-content mb-2">Session Token Expired</h2>
+                            <p class="text-sm text-base-content/70">
+                                Get notified when your Respondent.io session token is no longer valid. This is important as session tokens are used when running background tasks filtering projects for you.
+                            </p>
+                        </div>
+                        <label class="cursor-pointer">
+                            <input type="checkbox" id="tokenExpiredEnabled" class="toggle toggle-primary" checked />
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8">
+                <button type="submit" id="saveBtn" class="btn bg-gradient-to-r from-accent-purple to-purple-600 text-white border-none hover:opacity-90">
+                    <span class="btn-text">Save Preferences</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+async function loadNotifications() {
+    try {
+        const response = await fetch('/api/notifications/preferences');
+        if (!response.ok) {
+            throw new Error('Failed to load notification preferences');
+        }
+        
+        const data = await response.json();
+        
+        // Set weekly notification settings
+        if (data.weekly_project_summary) {
+            document.getElementById('weeklyEnabled').checked = data.weekly_project_summary.enabled !== false;
+            document.getElementById('weeklyDayOfWeek').value = data.weekly_project_summary.day_of_week || 0;
+        }
+        
+        // Set token expired notification settings
+        if (data.session_token_expired) {
+            document.getElementById('tokenExpiredEnabled').checked = data.session_token_expired.enabled !== false;
+        }
+        
+        // Update day selector visibility based on weekly notification enabled state
+        updateDaySelectorVisibility();
+    } catch (error) {
+        console.error('Error loading notifications:', error);
+        showError('Failed to load notification preferences');
+    }
+}
+
+function updateDaySelectorVisibility() {
+    const weeklyEnabled = document.getElementById('weeklyEnabled').checked;
+    const daySelector = document.getElementById('weeklyDaySelector');
+    if (weeklyEnabled) {
+        daySelector.style.display = 'block';
+    } else {
+        daySelector.style.display = 'none';
+    }
+}
+
+async function saveNotifications(event) {
+    event.preventDefault();
+    
+    const saveBtn = document.getElementById('saveBtn');
+    const btnText = saveBtn.querySelector('.btn-text');
+    const originalText = btnText.textContent;
+    
+    // Show loading state
+    saveBtn.classList.add('btn-loading');
+    saveBtn.disabled = true;
+    btnText.textContent = 'Saving...';
+    
+    try {
+        const preferences = {
+            weekly_project_summary: {
+                enabled: document.getElementById('weeklyEnabled').checked,
+                day_of_week: parseInt(document.getElementById('weeklyDayOfWeek').value)
+            },
+            session_token_expired: {
+                enabled: document.getElementById('tokenExpiredEnabled').checked
+            }
+        };
+        
+        const response = await fetch('/api/notifications/preferences', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(preferences)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to save notification preferences');
+        }
+        
+        showSuccess('Notification preferences saved successfully');
+    } catch (error) {
+        console.error('Error saving notifications:', error);
+        showError(error.message || 'Failed to save notification preferences');
+    } finally {
+        // Reset button state
+        saveBtn.classList.remove('btn-loading');
+        saveBtn.disabled = false;
+        btnText.textContent = originalText;
+    }
+}
+
+function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('hidden');
+    errorDiv.classList.add('block');
+    
+    // Hide success message if visible
+    document.getElementById('successMessage').classList.add('hidden');
+    document.getElementById('successMessage').classList.remove('block');
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showSuccess(message) {
+    const successDiv = document.getElementById('successMessage');
+    successDiv.textContent = message;
+    successDiv.classList.remove('hidden');
+    successDiv.classList.add('block');
+    
+    // Hide error message if visible
+    document.getElementById('errorMessage').classList.add('hidden');
+    document.getElementById('errorMessage').classList.remove('block');
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Load notifications on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadNotifications();
+    
+    // Update day selector visibility when weekly notification toggle changes
+    const weeklyToggle = document.getElementById('weeklyEnabled');
+    if (weeklyToggle) {
+        weeklyToggle.addEventListener('change', function() {
+            updateDaySelectorVisibility();
+            // Provide immediate visual feedback
+            console.log('Weekly notification:', this.checked ? 'enabled' : 'disabled');
+        });
+    }
+    
+    // Add change listener for token expired toggle
+    const tokenToggle = document.getElementById('tokenExpiredEnabled');
+    if (tokenToggle) {
+        tokenToggle.addEventListener('change', function() {
+            console.log('Token expiration notification:', this.checked ? 'enabled' : 'disabled');
+        });
+    }
+});
+</script>
+{% endblock %}

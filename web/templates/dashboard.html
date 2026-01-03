@@ -3,53 +3,50 @@
 {% block title %}Dashboard - Respondent Pro{% endblock %}
 
 {% block body %}
-<div class="container">
-    <div class="header">
-        <h1>Respondent Pro</h1>
-        <div class="user-info">
-            <span class="username">Logged in as: <strong>{{ email }}</strong></span>
-            <a href="/logout" class="btn-logout">Logout</a>
-        </div>
-    </div>
+<div class="flex-1 min-h-screen flex flex-col p-6 max-w-6xl mx-auto w-full">
+    {% include 'partials/header.html' %}
     
-    <nav class="nav-menu">
-        <ul>
-            <li><a href="/dashboard" class="active">Dashboard</a></li>
-            <li><a href="/projects">Projects</a></li>
-        </ul>
-    </nav>
-    
-    <div class="card">
-        <h2>
-            Session Keys
+    <div class="bg-base-100 rounded-xl p-8 shadow-lg mt-6">
+        <h1 class="text-2xl font-semibold text-base-content mb-6">Session Keys Configuration</h1>
+        
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-semibold text-base-content">Status</h2>
             {% if config %}
-            <span class="status-badge saved">Saved</span>
+            <span class="badge badge-success">Saved</span>
             {% else %}
-            <span class="status-badge not-saved">Not Saved</span>
+            <span class="badge badge-warning">Not Saved</span>
             {% endif %}
-        </h2>
+        </div>
         
-        <div class="error" id="error"></div>
-        <div class="success" id="success"></div>
+        <div class="alert alert-error hidden mb-4" id="error"></div>
+        <div class="alert alert-success hidden mb-4" id="success"></div>
         
-        <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px;">
+        <p class="text-sm text-base-content/70 mb-5">
             Provide your Respondent.io session keys to enable API access. You can find these in your browser's Developer Tools (F12) → Network tab when logged into respondent.io.
         </p>
         
-        <form id="sessionKeysForm">
-            <div class="form-group">
-                <label for="session_sid">respondent.session.sid *</label>
-                <input type="text" id="session_sid" placeholder="s%3AvDYrxyRM_m854jqPq90t05fkyVodoUc-..." name="session_sid" required>
-                <div class="help-text">The session cookie value from your browser</div>
+        <form id="sessionKeysForm" class="space-y-4">
+            <div class="form-control">
+                <label class="label" for="session_sid">
+                    <span class="label-text">respondent.session.sid *</span>
+                </label>
+                <input type="text" id="session_sid" placeholder="s%3AvDYrxyRM_m854jqPq90t05fkyVodoUc-..." name="session_sid" class="input input-bordered" required>
+                <div class="label">
+                    <span class="label-text-alt">The session cookie value from your browser</span>
+                </div>
             </div>
             
-            <div class="form-group">
-                <label for="authorization">Authorization Header</label>
-                <input type="text" id="authorization" placeholder="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." name="authorization">
-                <div class="help-text">The Authorization Bearer token from request headers (optional)</div>
+            <div class="form-control">
+                <label class="label" for="authorization">
+                    <span class="label-text">Authorization Header</span>
+                </label>
+                <input type="text" id="authorization" placeholder="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." name="authorization" class="input input-bordered">
+                <div class="label">
+                    <span class="label-text-alt">The Authorization Bearer token from request headers (optional)</span>
+                </div>
             </div>
             
-            <button type="submit" class="btn-primary" id="saveBtn">Save Session Keys</button>
+            <button type="submit" class="btn btn-primary w-full" id="saveBtn">Save Session Keys</button>
         </form>
     </div>
 </div>
@@ -57,6 +54,40 @@
 
 {% block extra_js %}
 <script>
+    // Override showError/showSuccess for DaisyUI alerts
+    function showError(message) {
+        const errorDiv = document.getElementById('error');
+        if (errorDiv) {
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            errorDiv.classList.add('alert-error');
+            const successDiv = document.getElementById('success');
+            if (successDiv) {
+                successDiv.classList.add('hidden');
+            }
+        }
+    }
+    
+    function showSuccess(message) {
+        const successDiv = document.getElementById('success');
+        if (successDiv) {
+            successDiv.textContent = message;
+            successDiv.classList.remove('hidden');
+            successDiv.classList.add('alert-success');
+            const errorDiv = document.getElementById('error');
+            if (errorDiv) {
+                errorDiv.classList.add('hidden');
+            }
+        }
+    }
+    
+    function hideMessage() {
+        const errorDiv = document.getElementById('error');
+        const successDiv = document.getElementById('success');
+        if (errorDiv) errorDiv.classList.add('hidden');
+        if (successDiv) successDiv.classList.add('hidden');
+    }
+    
     // Load existing config if available
     {% if config %}
     window.addEventListener('DOMContentLoaded', () => {
@@ -125,9 +156,11 @@
             }
             
             // Update status badge
-            const badge = document.querySelector('.status-badge');
-            badge.textContent = 'Saved';
-            badge.className = 'status-badge saved';
+            const badge = document.querySelector('.badge');
+            if (badge) {
+                badge.textContent = 'Saved';
+                badge.className = 'badge badge-success';
+            }
             
         } catch (error) {
             showError(error.message || 'Failed to save session keys');

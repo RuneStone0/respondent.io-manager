@@ -1247,3 +1247,83 @@ def refresh_cache():
         import traceback
         return jsonify({'error': str(e) + '\n' + traceback.format_exc()}), 500
 
+
+@bp.route('/notifications/preferences', methods=['GET'])
+def get_notification_preferences():
+    """Get user's notification preferences"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        user_id = session['user_id']
+        
+        # Import notification service
+        try:
+            from ..services.notification_service import load_notification_preferences
+        except ImportError:
+            from services.notification_service import load_notification_preferences
+        
+        preferences = load_notification_preferences(user_id)
+        
+        # Convert datetime objects to ISO format strings for JSON serialization
+        result = {}
+        for key, value in preferences.items():
+            if isinstance(value, dict):
+                result[key] = {}
+                for sub_key, sub_value in value.items():
+                    if isinstance(sub_value, datetime):
+                        result[key][sub_key] = sub_value.isoformat() + 'Z'
+                    else:
+                        result[key][sub_key] = sub_value
+            else:
+                result[key] = value
+        
+        return jsonify(result)
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e) + '\n' + traceback.format_exc()}), 500
+
+
+@bp.route('/notifications/preferences', methods=['POST'])
+def save_notification_preferences():
+    """Save user's notification preferences"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        user_id = session['user_id']
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Import notification service
+        try:
+            from ..services.notification_service import save_notification_preferences
+        except ImportError:
+            from services.notification_service import save_notification_preferences
+        
+        # Validate and prepare preferences
+        preferences = {
+            'weekly_project_summary': {
+                'enabled': bool(data.get('weekly_project_summary', {}).get('enabled', True)),
+                'day_of_week': int(data.get('weekly_project_summary', {}).get('day_of_week', 0))
+            },
+            'session_token_expired': {
+                'enabled': bool(data.get('session_token_expired', {}).get('enabled', True))
+            }
+        }
+        
+        # Validate day_of_week (0-6)
+        if not (0 <= preferences['weekly_project_summary']['day_of_week'] <= 6):
+            return jsonify({'error': 'Invalid day_of_week. Must be between 0 and 6.'}), 400
+        
+        save_notification_preferences(user_id, preferences)
+        
+        return jsonify({'success': True, 'message': 'Notification preferences saved successfully'})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e) + '\n' + traceback.format_exc()}), 500
+

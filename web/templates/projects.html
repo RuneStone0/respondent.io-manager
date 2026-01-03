@@ -4,232 +4,60 @@
 
 {% block extra_css %}
 <style>
-    .header {
-        padding: 16px 24px;
-        border-bottom: 1px solid var(--border-color);
-        border-radius: 0;
-        margin-bottom: 0;
-        box-shadow: none;
-    }
-    
-    .btn-hide-project {
-        padding: 6px 12px;
-        background: var(--card-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        color: var(--text-primary);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 14px;
-        transition: all 0.2s;
-    }
-    
-    .btn-hide-project:hover {
-        background: var(--hover-bg);
-        border-color: var(--primary-color);
-    }
-    
-    .progress-spinner {
-        border: 3px solid var(--border-color);
-        border-top: 3px solid var(--primary-color);
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 16px;
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    /* Toast Notification System */
     .toast-container {
-        position: fixed;
-        bottom: 60px;
-        right: 20px;
-        z-index: 10000;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
+        @apply fixed bottom-16 right-5 z-[10000] flex flex-col gap-3;
     }
-    
     .toast {
-        min-width: 300px;
-        max-width: 400px;
-        padding: 16px 20px;
-        background: var(--card-bg, #ffffff) !important;
-        background-color: var(--card-bg, #ffffff) !important;
-        opacity: 1 !important;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        animation: slideInRight 0.3s ease-out;
-        position: relative;
+        @apply min-w-[300px] max-w-[400px] p-4 bg-base-100 border border-base-300 rounded-lg shadow-lg flex items-center gap-3 relative;
     }
-    
-    /* Ensure toast background is solid in dark mode */
-    body.dark-mode .toast,
-    [data-theme="dark"] .toast {
-        background: var(--card-bg, #1f2937) !important;
-        background-color: var(--card-bg, #1f2937) !important;
-    }
-    
     .toast.success {
-        border-left: 4px solid #10b981;
+        @apply border-l-4 border-l-success;
     }
-    
     .toast.error {
-        border-left: 4px solid #ef4444;
+        @apply border-l-4 border-l-error;
     }
-    
     .toast.info {
-        border-left: 4px solid var(--primary-color);
+        @apply border-l-4 border-l-primary;
     }
-    
-    .toast-icon {
-        flex-shrink: 0;
-        width: 20px;
-        height: 20px;
-    }
-    
-    .toast-content {
-        flex: 1;
-        font-size: 14px;
-        color: var(--text-primary);
-    }
-    
-    .toast-close {
-        flex-shrink: 0;
-        background: none;
-        border: none;
-        color: var(--text-secondary);
-        cursor: pointer;
-        padding: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 4px;
-        transition: all 0.2s;
-    }
-    
-    .toast-close:hover {
-        background: var(--hover-bg);
-        color: var(--text-primary);
-    }
-    
-    @keyframes slideInRight {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOutRight {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
-    
     .toast.hiding {
-        animation: slideOutRight 0.3s ease-in forwards;
+        @apply animate-out slide-out-to-right;
     }
 </style>
 {% endblock %}
 
 {% block body %}
-<div class="main-content">
-    <div class="header">
-        <div class="header-left">
-            <div class="logo">R</div>
-            <div class="header-title">Respondent Pro</div>
-        </div>
-        <div class="header-right">
-            <div class="profile-menu-container">
-                <button class="profile-icon-btn" onclick="toggleProfileMenu()" aria-label="Profile menu">
-                    <div class="user-avatar">{{ email[0].upper() if email else 'U' }}</div>
-                </button>
-                <div class="profile-dropdown" id="profileDropdown">
-                    <div class="profile-dropdown-header">
-                        <div class="profile-dropdown-avatar">{{ email[0].upper() if email else 'U' }}</div>
-                        <div class="profile-dropdown-info">
-                            <div class="profile-dropdown-name">{{ email }}</div>
-                            <div class="profile-dropdown-id" id="profileAccountId">ID: {{ config.profile_id[:8] if config and config.profile_id else 'Not configured' }}</div>
-                        </div>
-                    </div>
-                    <div class="profile-dropdown-divider"></div>
-                    <div class="profile-dropdown-item" onclick="window.location.href='/onboarding'; closeProfileMenu();">
-                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
-                        </svg>
-                        <span>Credentials</span>
-                    </div>
-                    <div class="profile-dropdown-item" onclick="window.location.href='/account'; closeProfileMenu();">
-                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
-                        </svg>
-                        <span>Account</span>
-                    </div>
-                    <div class="profile-dropdown-divider"></div>
-                    <a href="/logout" class="profile-dropdown-item profile-dropdown-logout">
-                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm11 4.414l-4.293 4.293a1 1 0 01-1.414 0L4 8.414V15h10V7.414zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
-                        </svg>
-                        <span>Logout</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="flex-1 min-h-screen flex flex-col p-6 max-w-6xl mx-auto w-full">
+    {% include 'partials/header.html' %}
     
     {% if error %}
-    <div class="alert-banner" id="alertBanner">
-        <div class="alert-content">
-            <svg class="alert-icon" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-            </svg>
-            <div>
-                <strong>Failed to fetch projects</strong>
-                <div style="font-size: 12px; margin-top: 4px; opacity: 0.9;">{{ error }}</div>
-            </div>
+    <div class="alert alert-error mx-6 mt-6">
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div>
+            <h3 class="font-bold">Failed to fetch projects</h3>
+            <div class="text-xs">{{ error }}</div>
         </div>
-        <button class="btn-try-again" onclick="location.reload()">Try Again</button>
+        <button class="btn btn-sm" onclick="location.reload()">Try Again</button>
     </div>
     {% endif %}
     
-    <div class="content-area">
-        <div class="section-header">
-            <div class="section-actions">
-                <button class="btn-filter-settings" onclick="toggleFilterPanel()" id="filterSettingsBtn">
-                    <svg fill="currentColor" viewBox="0 0 20 20" style="width: 16px; height: 16px; margin-right: 8px;">
-                        <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z"/>
-                    </svg>
-                    Hide Settings
-                </button>
-            </div>
+    <div class="flex-1 px-6 py-6">
+        <div class="flex justify-end mb-4">
+            <button class="btn btn-outline btn-sm" onclick="toggleFilterPanel()" id="filterSettingsBtn">
+                <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2">
+                    <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z"/>
+                </svg>
+                Hide Settings
+            </button>
         </div>
         
-        <div class="filter-panel" id="filterPanel" style="display: none;">
-            <div class="filter-panel-header">
-                <h3>Hide Settings</h3>
-                <button class="btn-close-filter" onclick="toggleFilterPanel()">×</button>
+        <div class="card bg-base-200 shadow-xl p-6 mb-6 hidden" id="filterPanel">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-base-content">Hide Settings</h3>
+                <button class="btn btn-sm btn-ghost btn-circle" onclick="toggleFilterPanel()">×</button>
             </div>
-            <div class="filter-panel-content">
+            <div class="flex flex-col gap-4">
                 <!-- Global Mode Selector -->
                 <div class="filter-mode-section">
                     <div class="mode-selector-header">
@@ -314,21 +142,21 @@
                     <div class="help-text">When enabled, projects will be hidden based on feedback you've provided when hiding previous projects.</div>
                 </div>
                 
-                <div class="filter-panel-actions">
-                    <button class="btn-primary" id="applyFiltersBtn" onclick="saveFilters()">Hide Projects</button>
+                <div class="flex justify-end mt-6">
+                    <button class="btn btn-primary" id="applyFiltersBtn" onclick="saveFilters()">Hide Projects</button>
                 </div>
             </div>
         </div>
         
-        <div class="projects-container">
+        <div>
             {% if not has_config %}
-            <div class="empty-state">
-                <svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="flex flex-col items-center justify-center py-16 text-center">
+                <svg class="w-16 h-16 text-base-content/30 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                <h3>Session keys not configured</h3>
-                <p>Click the button below to configure your Respondent.io session keys.</p>
-                <button class="btn-primary" onclick="window.location.href='/onboarding'" style="margin-top: 16px;">Configure Session Keys</button>
+                <h3 class="text-xl font-semibold text-base-content mb-2">Session keys not configured</h3>
+                <p class="text-base-content/70 mb-6">Click the button below to configure your Respondent.io session keys.</p>
+                <button class="btn btn-primary" onclick="window.location.href='/onboarding'">Configure Session Keys</button>
             </div>
             {% elif projects and projects.results %}
             <div class="project-list">
@@ -340,7 +168,7 @@
                             <div class="project-id">ID: {{ project.id }}</div>
                         </div>
                         <div style="display: flex; gap: 8px; align-items: center;">
-                            <button class="btn-hide-project" onclick="openHideModal('{{ project.id }}', '{{ project.name|replace("'", "\\'") }}')" title="Hide this project">
+                            <button class="btn btn-sm btn-outline whitespace-nowrap flex items-center gap-1.5" onclick="openHideModal('{{ project.id }}', '{{ project.name|replace("'", "\\'") }}')" title="Hide this project">
                                 <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
                                     <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A20.932 20.932 0 0018.928 10c-1.137-4.5-4.663-7.857-8.928-9.5a19.04 19.04 0 00-2.348.637L3.707 2.293zM5.865 4.637A18.97 18.97 0 0010 3.5c2.209 0 4.154.89 5.635 2.363A18.97 18.97 0 0116.5 10c0 .695-.08 1.37-.23 2.02l-1.523-1.523A10.945 10.945 0 0015 10a8 8 0 00-8-8c-.695 0-1.37.08-2.02.23L2.293 2.293zm8.293 8.293l-1.586-1.586A4 4 0 0110 6a4 4 0 00-4 4c0 .695.08 1.37.23 2.02l1.523 1.523A10.945 10.945 0 005 10a8 8 0 018-8c.695 0 1.37.08 2.02.23l-1.523 1.523z" clip-rule="evenodd"/>
                                     <path d="M13.586 13.586L2.293 2.293a1 1 0 011.414-1.414l11.293 11.293a1 1 0 01-1.414 1.414z"/>
@@ -424,15 +252,11 @@
                         {% set project_topics = project.project.topics %}
                     {% endif %}
                     {% if project_topics and project_topics|length > 0 %}
-                    <div class="project-topics" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
-                        <div style="font-size: 0.9em; color: var(--text-secondary); margin-bottom: 8px; font-weight: 500;">Topics:</div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                            {% for topic in project_topics %}
-                            <span style="display: inline-block; padding: 4px 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85em; color: var(--text-primary);">
-                                {{ topic.name }}
-                            </span>
-                            {% endfor %}
-                        </div>
+                    <div class="project-topics mt-3 pt-3 border-t border-base-300">
+                        <span class="text-sm text-base-content/70 font-medium">Topic:</span>
+                        {% for topic in project_topics %}
+                        <span class="badge badge-outline badge-sm ml-1">{{ topic.name }}</span>
+                        {% endfor %}
                     </div>
                     {% endif %}
                     
@@ -445,12 +269,12 @@
                 {% endfor %}
             </div>
             {% else %}
-            <div class="empty-state">
-                <svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="flex flex-col items-center justify-center py-16 text-center">
+                <svg class="w-16 h-16 text-base-content/30 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                <h3>No projects match your criteria</h3>
-                <p>Try changing your Target Hourly Rate or targeting profile.</p>
+                <h3 class="text-xl font-semibold text-base-content mb-2">No projects match your criteria</h3>
+                <p class="text-base-content/70">Try changing your Target Hourly Rate or targeting profile.</p>
             </div>
             {% endif %}
         </div>
@@ -659,6 +483,7 @@
 
 {% block extra_js %}
 <script>
+    
     // Toast Notification System
     function showToast(message, type = 'info', duration = 5000) {
         const container = document.getElementById('toastContainer');
@@ -758,8 +583,7 @@
     
     function toggleFilterPanel() {
         const panel = document.getElementById('filterPanel');
-        const isVisible = panel.style.display !== 'none';
-        panel.style.display = isVisible ? 'none' : 'block';
+        panel.classList.toggle('hidden');
     }
     
     function updateGlobalMode() {
@@ -1114,35 +938,6 @@
     }
     
     
-    function toggleProfileMenu() {
-        const dropdown = document.getElementById('profileDropdown');
-        if (dropdown) {
-            dropdown.classList.toggle('show');
-        }
-    }
-    
-    function closeProfileMenu() {
-        const dropdown = document.getElementById('profileDropdown');
-        if (dropdown) {
-            dropdown.classList.remove('show');
-        }
-    }
-    
-    // Close profile menu when clicking outside
-    document.addEventListener('click', function(event) {
-        const profileMenu = document.querySelector('.profile-menu-container');
-        const dropdown = document.getElementById('profileDropdown');
-        if (profileMenu && dropdown && !profileMenu.contains(event.target)) {
-            dropdown.classList.remove('show');
-        }
-    });
-    
-    // Close profile menu on Escape key
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            closeProfileMenu();
-        }
-    });
     
     function updateCacheRefreshedDisplay() {
         // This function can be called after cache refresh
@@ -1912,12 +1707,12 @@
                     const projectsContainer = document.querySelector('.projects-container');
                     if (projectsContainer) {
                         projectsContainer.innerHTML = `
-                            <div class="empty-state">
-                                <svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="flex flex-col items-center justify-center py-16 text-center">
+                                <svg class="w-16 h-16 text-base-content/30 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                                 </svg>
-                                <h3>No projects available</h3>
-                                <p>All projects have been hidden or there are no matching projects.</p>
+                                <h3 class="text-xl font-semibold text-base-content mb-2">No projects available</h3>
+                                <p class="text-base-content/70">All projects have been hidden or there are no matching projects.</p>
                             </div>
                         `;
                     }

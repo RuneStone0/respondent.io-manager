@@ -307,3 +307,18 @@ except ImportError:
     app.register_blueprint(page_bp)
     app.register_blueprint(api_bp)
 
+# Initialize notification scheduler if MongoDB is available
+if mongo_available and db is not None:
+    try:
+        from .notification_scheduler import start_notification_scheduler
+        notification_thread = start_notification_scheduler(db, check_interval_hours=1, token_check_interval_hours=12)
+        print("[Notifications] Notification scheduler started (weekly: 1h, token expiration: 12h)")
+    except ImportError:
+        try:
+            from notification_scheduler import start_notification_scheduler
+            notification_thread = start_notification_scheduler(db, check_interval_hours=1, token_check_interval_hours=12)
+            print("[Notifications] Notification scheduler started (weekly: 1h, token expiration: 12h)")
+        except Exception as e:
+            print(f"[Notifications] Failed to start notification scheduler: {e}")
+    except Exception as e:
+        print(f"[Notifications] Failed to start notification scheduler: {e}")

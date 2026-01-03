@@ -2,6 +2,34 @@
  * Account page JavaScript for passkey management
  */
 
+function setButtonLoading(button, isLoading, text = null) {
+    if (!button) return;
+    
+    if (isLoading) {
+        button.disabled = true;
+        button.classList.add('btn-loading');
+        const btnText = button.querySelector('.btn-text');
+        if (btnText) {
+            if (text) {
+                btnText.textContent = text;
+            }
+            // Add spinner if it doesn't exist
+            if (!button.querySelector('.btn-spinner')) {
+                const spinner = document.createElement('span');
+                spinner.className = 'btn-spinner';
+                button.insertBefore(spinner, btnText);
+            }
+        }
+    } else {
+        button.disabled = false;
+        button.classList.remove('btn-loading');
+        const spinner = button.querySelector('.btn-spinner');
+        if (spinner) {
+            spinner.remove();
+        }
+    }
+}
+
 async function addPasskey() {
     const button = document.getElementById('addPasskeyBtn');
     const errorMessage = document.getElementById('errorMessage');
@@ -9,8 +37,7 @@ async function addPasskey() {
     
     errorMessage.style.display = 'none';
     successMessage.style.display = 'none';
-    button.disabled = true;
-    button.textContent = 'Adding...';
+    setButtonLoading(button, true, 'Adding...');
     
     try {
         // Begin passkey registration
@@ -89,8 +116,11 @@ async function addPasskey() {
         errorMessage.style.display = 'block';
         console.error('Error adding passkey:', error);
     } finally {
-        button.disabled = false;
-        button.textContent = 'Add Passkey';
+        setButtonLoading(button, false);
+        const btnText = button.querySelector('.btn-text');
+        if (btnText) {
+            btnText.textContent = 'Add Passkey';
+        }
     }
 }
 
@@ -104,6 +134,17 @@ async function deletePasskey(credentialId) {
     
     errorMessage.style.display = 'none';
     successMessage.style.display = 'none';
+    
+    // Find the delete button for this passkey
+    const passkeyElement = document.querySelector(`[data-credential-id="${credentialId}"]`);
+    const deleteButton = passkeyElement ? passkeyElement.querySelector('button.btn-error') : null;
+    
+    let originalText = 'Delete';
+    if (deleteButton) {
+        const btnText = deleteButton.querySelector('.btn-text');
+        originalText = btnText ? btnText.textContent : deleteButton.textContent;
+        setButtonLoading(deleteButton, true, 'Deleting...');
+    }
     
     try {
         const response = await fetch(`/api/passkeys/${encodeURIComponent(credentialId)}`, {
@@ -129,6 +170,16 @@ async function deletePasskey(credentialId) {
         errorMessage.textContent = 'Error: ' + error.message;
         errorMessage.style.display = 'block';
         console.error('Error deleting passkey:', error);
+    } finally {
+        if (deleteButton) {
+            setButtonLoading(deleteButton, false);
+            const btnText = deleteButton.querySelector('.btn-text');
+            if (btnText) {
+                btnText.textContent = originalText;
+            } else {
+                deleteButton.textContent = originalText;
+            }
+        }
     }
 }
 

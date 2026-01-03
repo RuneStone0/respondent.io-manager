@@ -147,6 +147,16 @@ def account():
     return render_template('account.html', email=email, passkeys=passkeys)
 
 
+@bp.route('/notifications')
+@require_verified
+def notifications():
+    """Notifications page - configure email notification preferences"""
+    user_id = session['user_id']
+    email = session.get('email', 'User')
+    
+    return render_template('notifications.html', email=email)
+
+
 @bp.route('/projects')
 @require_verified
 def projects():

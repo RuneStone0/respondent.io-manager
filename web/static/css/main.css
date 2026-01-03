@@ -786,6 +786,7 @@ input[type="text"][name="authorization"] {
 .project-list {
     display: grid;
     gap: 16px;
+    margin-bottom: 32px;
 }
 
 .project-card {

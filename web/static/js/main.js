@@ -63,42 +63,79 @@ function uint8ArrayToBase64url(bytes) {
 
 /**
  * Show error message
+ * Handles both 'show' class approach and 'hidden' class with display style
  */
 function showError(message) {
     const errorEl = document.getElementById('error');
     if (errorEl) {
         errorEl.textContent = message;
-        errorEl.classList.add('show');
+        // Try 'show' class first (for elements using class-based visibility)
+        if (errorEl.classList) {
+            errorEl.classList.add('show');
+            errorEl.classList.remove('hidden');
+        }
+        // Also set display style (for elements using style-based visibility)
+        errorEl.style.display = 'block';
+        
         const successEl = document.getElementById('success');
         if (successEl) {
-            successEl.classList.remove('show');
+            if (successEl.classList) {
+                successEl.classList.remove('show');
+                successEl.classList.add('hidden');
+            }
+            successEl.style.display = 'none';
         }
     }
 }
 
 /**
  * Show success message
+ * Handles both 'show' class approach and 'hidden' class with display style
  */
 function showSuccess(message) {
     const successEl = document.getElementById('success');
     if (successEl) {
         successEl.textContent = message;
-        successEl.classList.add('show');
+        // Try 'show' class first (for elements using class-based visibility)
+        if (successEl.classList) {
+            successEl.classList.add('show');
+            successEl.classList.remove('hidden');
+        }
+        // Also set display style (for elements using style-based visibility)
+        successEl.style.display = 'block';
+        
         const errorEl = document.getElementById('error');
         if (errorEl) {
-            errorEl.classList.remove('show');
+            if (errorEl.classList) {
+                errorEl.classList.remove('show');
+                errorEl.classList.add('hidden');
+            }
+            errorEl.style.display = 'none';
         }
     }
 }
 
 /**
  * Hide all messages
+ * Handles both 'show' class approach and 'hidden' class with display style
  */
 function hideMessage() {
     const errorEl = document.getElementById('error');
     const successEl = document.getElementById('success');
-    if (errorEl) errorEl.classList.remove('show');
-    if (successEl) successEl.classList.remove('show');
+    if (errorEl) {
+        if (errorEl.classList) {
+            errorEl.classList.remove('show');
+            errorEl.classList.add('hidden');
+        }
+        errorEl.style.display = 'none';
+    }
+    if (successEl) {
+        if (successEl.classList) {
+            successEl.classList.remove('show');
+            successEl.classList.add('hidden');
+        }
+        successEl.style.display = 'none';
+    }
 }
 
 /* ============================================
@@ -131,6 +168,52 @@ function loadTheme() {
         document.documentElement.setAttribute('data-theme', theme);
     });
 }
+
+/**
+ * Toggle dark mode on/off
+ * Saves preference to localStorage
+ */
+function toggleDarkMode() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    
+    updateDarkModeIcon(newTheme);
+}
+
+/**
+ * Update dark mode icon and text based on current theme
+ * @param {string} theme - Current theme ('dark' or 'light')
+ */
+function updateDarkModeIcon(theme) {
+    const icon = document.getElementById('darkModeIcon');
+    const text = document.getElementById('darkModeText');
+    
+    if (icon && text) {
+        if (theme === 'dark') {
+            icon.innerHTML = '<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"/>';
+            text.textContent = 'Light Mode';
+        } else {
+            icon.innerHTML = '<path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>';
+            text.textContent = 'Dark Mode';
+        }
+    }
+}
+
+// Initialize theme from localStorage on page load
+window.addEventListener('DOMContentLoaded', () => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateDarkModeIcon(savedTheme);
+    } else {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        updateDarkModeIcon(currentTheme || 'light');
+    }
+});
 
 // Auto-load theme when DOM is ready
 if (document.readyState === 'loading') {
