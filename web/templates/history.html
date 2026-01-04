@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}History - Respondent Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        @apply bg-base-200 rounded-lg p-6 shadow-md;
+    }
+    .method-badge {
+        @apply px-3 py-1 rounded-full text-xs font-semibold;
+    }
+    .method-manual {
+        @apply bg-blue-500/20 text-blue-600 dark:text-blue-400;
+    }
+    .method-automated {
+        @apply bg-green-500/20 text-green-600 dark:text-green-400;
+    }
+    .loading-spinner {
+        @apply inline-block w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="flex-1 min-h-screen flex flex-col p-6 max-w-6xl mx-auto w-full">
+    {% include 'partials/header.html' %}
+    
+    <div class="bg-base-100 rounded-xl p-8 shadow-lg mt-6">
+        <h1 class="text-2xl font-semibold text-base-content mb-6">Hidden Projects History</h1>
+        
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <div class="stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-base-content/70 mb-1">Manually Hidden</div>
+                        <div class="text-3xl font-bold text-base-content" id="manualCount">-</div>
+                    </div>
+                    <div class="text-4xl opacity-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-base-content/70 mb-1">Automatically Hidden</div>
+                        <div class="text-3xl font-bold text-base-content" id="automatedCount">-</div>
+                    </div>
+                    <div class="text-4xl opacity-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Projects Table -->
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold text-base-content mb-4">Hidden Projects</h2>
+            
+            <div id="loadingIndicator" class="text-center py-8">
+                <div class="loading-spinner mx-auto mb-2"></div>
+                <div class="text-base-content/70">Loading history...</div>
+            </div>
+            
+            <div id="errorMessage" class="alert alert-error hidden mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span id="errorText"></span>
+            </div>
+            
+            <div id="projectsTable" class="hidden">
+                <div class="overflow-x-auto">
+                    <table class="table table-zebra w-full">
+                        <thead>
+                            <tr>
+                                <th>Project ID</th>
+                                <th>Hidden At</th>
+                                <th>Method</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projectsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="flex justify-center items-center gap-2 mt-6" id="paginationContainer">
+                </div>
+            </div>
+            
+            <div id="emptyState" class="hidden text-center py-10 text-base-content/70">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p class="text-lg font-semibold mb-2">No hidden projects yet</p>
+                <p class="text-sm">Projects you hide will appear here</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPage = 1;
+const itemsPerPage = 50;
+
+// Method classification
+const manualMethods = ['manual', 'feedback_based'];
+const automatedMethods = ['auto', 'ai_auto', 'auto_similar', 'category'];
+
+function formatMethod(method) {
+    const methodMap = {
+        'manual': 'Manual',
+        'feedback_based': 'Feedback Based',
+        'auto': 'Auto',
+        'ai_auto': 'AI Auto',
+        'auto_similar': 'Auto Similar',
+        'category': 'Category'
+    };
+    return methodMap[method] || method;
+}
+
+function isManualMethod(method) {
+    return manualMethods.includes(method);
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'Unknown';
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+    } catch (e) {
+        return dateString;
+    }
+}
+
+async function loadHistory(page = 1) {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const errorMessage = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    const projectsTable = document.getElementById('projectsTable');
+    const projectsTableBody = document.getElementById('projectsTableBody');
+    const emptyState = document.getElementById('emptyState');
+    const paginationContainer = document.getElementById('paginationContainer');
+    
+    // Show loading
+    loadingIndicator.classList.remove('hidden');
+    errorMessage.classList.add('hidden');
+    projectsTable.classList.add('hidden');
+    emptyState.classList.add('hidden');
+    
+    try {
+        const response = await fetch(`/api/history?page=${page}&limit=${itemsPerPage}`);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to load history');
+        }
+        
+        // Update counts
+        document.getElementById('manualCount').textContent = data.manual_count || 0;
+        document.getElementById('automatedCount').textContent = data.automated_count || 0;
+        
+        // Hide loading
+        loadingIndicator.classList.add('hidden');
+        
+        if (data.projects && data.projects.length > 0) {
+            // Populate table
+            projectsTableBody.innerHTML = '';
+            data.projects.forEach(project => {
+                const row = document.createElement('tr');
+                const method = project.hidden_method || 'unknown';
+                const isManual = isManualMethod(method);
+                
+                row.innerHTML = `
+                    <td class="font-mono text-sm">${project.project_id || 'Unknown'}</td>
+                    <td>${formatDate(project.hidden_at)}</td>
+                    <td>
+                        <span class="method-badge ${isManual ? 'method-manual' : 'method-automated'}">
+                            ${formatMethod(method)}
+                        </span>
+                    </td>
+                `;
+                projectsTableBody.appendChild(row);
+            });
+            
+            // Update pagination
+            updatePagination(data.page, data.total_pages, paginationContainer);
+            
+            projectsTable.classList.remove('hidden');
+        } else {
+            emptyState.classList.remove('hidden');
+        }
+        
+        currentPage = page;
+    } catch (error) {
+        console.error('Error loading history:', error);
+        loadingIndicator.classList.add('hidden');
+        errorText.textContent = error.message || 'Failed to load history. Please try again.';
+        errorMessage.classList.remove('hidden');
+    }
+}
+
+function updatePagination(currentPageNum, totalPages, container) {
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    
+    // Previous button
+    html += `<button class="btn btn-sm ${currentPageNum === 1 ? 'btn-disabled' : ''}" ${currentPageNum === 1 ? 'disabled' : `onclick="loadHistory(${currentPageNum - 1})"`}>Previous</button>`;
+    
+    // Page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPageNum - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    if (startPage > 1) {
+        html += `<button class="btn btn-sm" onclick="loadHistory(1)">1</button>`;
+        if (startPage > 2) {
+            html += `<span class="px-2">...</span>`;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<button class="btn btn-sm ${i === currentPageNum ? 'btn-active' : ''}" onclick="loadHistory(${i})">${i}</button>`;
+    }
+    
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            html += `<span class="px-2">...</span>`;
+        }
+        html += `<button class="btn btn-sm" onclick="loadHistory(${totalPages})">${totalPages}</button>`;
+    }
+    
+    // Next button
+    html += `<button class="btn btn-sm ${currentPageNum === totalPages ? 'btn-disabled' : ''}" ${currentPageNum === totalPages ? 'disabled' : `onclick="loadHistory(${currentPageNum + 1})"`}>Next</button>`;
+    
+    container.innerHTML = html;
+}
+
+// Load history on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadHistory(1);
+});
+</script>
+{% endblock %}

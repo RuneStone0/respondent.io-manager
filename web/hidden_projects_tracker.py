@@ -292,3 +292,72 @@ def get_recently_hidden(
         print(f"Error getting recently hidden projects: {e}")
         return []
 
+
+def get_all_hidden_projects(
+    collection: Collection,
+    user_id: str,
+    page: int = 1,
+    limit: int = 50
+) -> Dict[str, Any]:
+    """
+    Get all hidden projects for a user with pagination support
+    
+    Args:
+        collection: MongoDB collection for hidden_projects_log
+        user_id: User ID
+        page: Page number (1-indexed)
+        limit: Number of results per page
+        
+    Returns:
+        Dictionary with:
+        - 'projects': List of hidden project documents
+        - 'total': Total count of hidden projects
+        - 'page': Current page number
+        - 'limit': Results per page
+        - 'total_pages': Total number of pages
+    """
+    try:
+        # Calculate skip value
+        skip = (page - 1) * limit
+        
+        # Get total count
+        total = collection.count_documents({'user_id': user_id})
+        
+        # Fetch paginated results, sorted by hidden_at descending (most recent first)
+        results = list(
+            collection.find(
+                {'user_id': user_id},
+                {'project_id': 1, 'hidden_at': 1, 'hidden_method': 1, 'category_name': 1, 'feedback_text': 1}
+            )
+            .sort('hidden_at', -1)
+            .skip(skip)
+            .limit(limit)
+        )
+        
+        # Convert ObjectId to string and datetime to ISO format for JSON serialization
+        for item in results:
+            if '_id' in item:
+                item['_id'] = str(item['_id'])
+            if 'hidden_at' in item and item['hidden_at']:
+                item['hidden_at'] = item['hidden_at'].isoformat()
+        
+        # Calculate total pages
+        total_pages = (total + limit - 1) // limit if total > 0 else 0
+        
+        return {
+            'projects': results,
+            'total': total,
+            'page': page,
+            'limit': limit,
+            'total_pages': total_pages
+        }
+    except Exception as e:
+        print(f"Error getting all hidden projects: {e}")
+        return {
+            'projects': [],
+            'total': 0,
+            'page': page,
+            'limit': limit,
+            'total_pages': 0
+        }
+

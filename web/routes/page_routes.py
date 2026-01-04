@@ -157,6 +157,16 @@ def notifications():
     return render_template('notifications.html', email=email)
 
 
+@bp.route('/history')
+@require_verified
+def history():
+    """History page - view hidden projects log"""
+    user_id = session['user_id']
+    email = session.get('email', 'User')
+    
+    return render_template('history.html', email=email)
+
+
 @bp.route('/projects')
 @require_verified
 def projects():

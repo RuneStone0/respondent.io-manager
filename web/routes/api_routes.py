@@ -20,7 +20,8 @@ try:
     )
     from ..cache_manager import get_cached_projects, get_cache_stats, mark_projects_hidden_in_cache
     from ..hidden_projects_tracker import (
-        get_hidden_projects_count, get_hidden_projects_timeline, get_hidden_projects_stats
+        get_hidden_projects_count, get_hidden_projects_timeline, get_hidden_projects_stats,
+        get_all_hidden_projects
     )
     from ..ai_analyzer import (
         generate_question_from_project, find_similar_projects, generate_hide_suggestions
@@ -44,7 +45,8 @@ except ImportError:
     )
     from cache_manager import get_cached_projects, get_cache_stats, mark_projects_hidden_in_cache
     from hidden_projects_tracker import (
-        get_hidden_projects_count, get_hidden_projects_timeline, get_hidden_projects_stats
+        get_hidden_projects_count, get_hidden_projects_timeline, get_hidden_projects_stats,
+        get_all_hidden_projects
     )
     from ai_analyzer import (
         generate_question_from_project, find_similar_projects, generate_hide_suggestions
@@ -1323,6 +1325,82 @@ def save_notification_preferences():
         return jsonify({'success': True, 'message': 'Notification preferences saved successfully'})
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e) + '\n' + traceback.format_exc()}), 500
+
+
+@bp.route('/history', methods=['GET'])
+def get_history():
+    """Get hidden projects history with pagination and counts"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        user_id = str(session['user_id'])
+        
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 50, type=int)
+        
+        # Validate pagination
+        if page < 1:
+            page = 1
+        if limit < 1 or limit > 100:
+            limit = 50
+        
+        if hidden_projects_log_collection is None:
+            return jsonify({
+                'manual_count': 0,
+                'automated_count': 0,
+                'total_count': 0,
+                'projects': [],
+                'page': page,
+                'limit': limit,
+                'total_pages': 0
+            })
+        
+        # Get paginated projects
+        result = get_all_hidden_projects(
+            hidden_projects_log_collection,
+            user_id,
+            page=page,
+            limit=limit
+        )
+        
+        # Count manual vs automated
+        manual_methods = ['manual', 'feedback_based']
+        automated_methods = ['auto', 'ai_auto', 'auto_similar', 'category']
+        
+        # Count by method
+        pipeline = [
+            {'$match': {'user_id': user_id}},
+            {
+                '$group': {
+                    '_id': '$hidden_method',
+                    'count': {'$sum': 1}
+                }
+            }
+        ]
+        
+        method_counts = {}
+        for doc in hidden_projects_log_collection.aggregate(pipeline):
+            method_counts[doc['_id']] = doc['count']
+        
+        # Calculate manual and automated counts
+        manual_count = sum(method_counts.get(method, 0) for method in manual_methods)
+        automated_count = sum(method_counts.get(method, 0) for method in automated_methods)
+        
+        return jsonify({
+            'manual_count': manual_count,
+            'automated_count': automated_count,
+            'total_count': result['total'],
+            'projects': result['projects'],
+            'page': result['page'],
+            'limit': result['limit'],
+            'total_pages': result['total_pages']
+        })
+        
     except Exception as e:
         import traceback
         return jsonify({'error': str(e) + '\n' + traceback.format_exc()}), 500
