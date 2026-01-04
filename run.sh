@@ -40,7 +40,7 @@ if [ "$MODE" == "https" ]; then
     # Check if certificates exist
     if [ ! -f "$CERT_FILE" ] || [ ! -f "$KEY_FILE" ]; then
         echo "Error: SSL certificates not found!"
-        echo "Please run ./generate_cert.sh first"
+        echo "Please run ./scripts/generate_cert.sh first"
         exit 1
     fi
 
