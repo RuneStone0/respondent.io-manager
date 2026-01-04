@@ -5,7 +5,7 @@
 {% block extra_css %}
 <style>
     .stat-card {
-        @apply bg-base-200 rounded-lg p-6 shadow-md;
+        @apply bg-base-200 rounded-lg p-6 shadow-md border border-base-300;
     }
     .method-badge {
         @apply px-3 py-1 rounded-full text-xs font-semibold;
@@ -19,6 +19,13 @@
     .loading-spinner {
         @apply inline-block w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin;
     }
+    .project-name-cell {
+        @apply max-w-md;
+    }
+    .project-name-text {
+        @apply truncate inline-block align-middle;
+        max-width: calc(100% - 2rem);
+    }
 </style>
 {% endblock %}
 
@@ -30,40 +37,31 @@
         <h1 class="text-2xl font-semibold text-base-content mb-6">Hidden Projects History</h1>
         
         <!-- Statistics Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div class="stat-card">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <div class="text-sm text-base-content/70 mb-1">Manually Hidden</div>
-                        <div class="text-3xl font-bold text-base-content" id="manualCount">-</div>
-                    </div>
-                    <div class="text-4xl opacity-50">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                    </div>
+                <div>
+                    <div class="text-sm text-base-content/70 mb-1">Manually Hidden</div>
+                    <div class="text-3xl font-bold text-base-content" id="manualCount">-</div>
                 </div>
             </div>
             
             <div class="stat-card">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <div class="text-sm text-base-content/70 mb-1">Automatically Hidden</div>
-                        <div class="text-3xl font-bold text-base-content" id="automatedCount">-</div>
-                    </div>
-                    <div class="text-4xl opacity-50">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                    </div>
+                <div>
+                    <div class="text-sm text-base-content/70 mb-1">Automatically Hidden</div>
+                    <div class="text-3xl font-bold text-base-content" id="automatedCount">-</div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div>
+                    <div class="text-sm text-base-content/70 mb-1">Time Saved</div>
+                    <div class="text-3xl font-bold text-base-content" id="timeSaved" title="Time saved is based on 2 min. review time per project">-</div>
                 </div>
             </div>
         </div>
         
         <!-- Projects Table -->
         <div class="mb-6">
-            <h2 class="text-lg font-semibold text-base-content mb-4">Hidden Projects</h2>
-            
             <div id="loadingIndicator" class="text-center py-8">
                 <div class="loading-spinner mx-auto mb-2"></div>
                 <div class="text-base-content/70">Loading history...</div>
@@ -81,8 +79,8 @@
                     <table class="table table-zebra w-full">
                         <thead>
                             <tr>
-                                <th>Project ID</th>
-                                <th>Hidden At</th>
+                                <th>Project Name</th>
+                                <th>Hidden</th>
                                 <th>Method</th>
                             </tr>
                         </thead>
@@ -120,8 +118,8 @@ function formatMethod(method) {
         'manual': 'Manual',
         'feedback_based': 'Feedback Based',
         'applied': 'Applied',
-        'auto': 'Auto',
-        'ai_auto': 'AI Auto',
+        'auto': 'Respondent Pro',
+        'ai_auto': 'Respondent Pro',
         'auto_similar': 'Auto Similar',
         'category': 'Category'
     };
@@ -130,6 +128,12 @@ function formatMethod(method) {
 
 function isManualMethod(method) {
     return manualMethods.includes(method);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function formatDate(dateString) {
@@ -147,6 +151,58 @@ function formatDate(dateString) {
         });
     } catch (e) {
         return dateString;
+    }
+}
+
+function formatTimeSaved(minutes) {
+    if (minutes === 0) return '0 min';
+    
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    
+    if (hours === 0) {
+        return `${minutes} min`;
+    } else if (remainingMinutes === 0) {
+        return `${hours} ${hours === 1 ? 'hr' : 'hrs'}`;
+    } else {
+        return `${hours} ${hours === 1 ? 'hr' : 'hrs'} ${remainingMinutes} min`;
+    }
+}
+
+function formatRelativeTime(dateString) {
+    if (!dateString) return 'Unknown';
+    try {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSeconds = Math.floor(diffMs / 1000);
+        const diffMinutes = Math.floor(diffSeconds / 60);
+        const diffHours = Math.floor(diffMinutes / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        const diffWeeks = Math.floor(diffDays / 7);
+        
+        if (diffSeconds < 60) {
+            return 'just now';
+        } else if (diffMinutes < 60) {
+            return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
+        } else if (diffHours < 24) {
+            return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+        } else if (diffDays < 7) {
+            return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+        } else if (diffWeeks < 4) {
+            return `${diffWeeks} ${diffWeeks === 1 ? 'week' : 'weeks'} ago`;
+        } else {
+            // For older dates, show months or the actual date
+            const diffMonths = Math.floor(diffDays / 30);
+            if (diffMonths < 12) {
+                return `${diffMonths} ${diffMonths === 1 ? 'month' : 'months'} ago`;
+            } else {
+                const diffYears = Math.floor(diffMonths / 12);
+                return `${diffYears} ${diffYears === 1 ? 'year' : 'years'} ago`;
+            }
+        }
+    } catch (e) {
+        return 'Unknown';
     }
 }
 
@@ -177,6 +233,13 @@ async function loadHistory(page = 1) {
         document.getElementById('manualCount').textContent = data.manual_count || 0;
         document.getElementById('automatedCount').textContent = data.automated_count || 0;
         
+        // Calculate and display time saved
+        const automatedCount = data.automated_count || 0;
+        const timeSavedMinutes = automatedCount * 2;
+        const timeSavedElement = document.getElementById('timeSaved');
+        timeSavedElement.textContent = formatTimeSaved(timeSavedMinutes);
+        timeSavedElement.title = 'Time saved is based on 2 min. review time per project';
+        
         // Hide loading
         loadingIndicator.classList.add('hidden');
         
@@ -187,10 +250,27 @@ async function loadHistory(page = 1) {
                 const row = document.createElement('tr');
                 const method = project.hidden_method || 'unknown';
                 const isManual = isManualMethod(method);
+                const projectId = project.project_id || 'Unknown';
+                const projectName = project.project_name || 'Unknown Project';
+                const projectUrl = projectId !== 'Unknown' 
+                    ? `https://app.respondent.io/respondents/v2/projects/view/${projectId}`
+                    : '#';
                 
+                const isUnknownProject = !project.project_name || projectName === 'Unknown Project';
                 row.innerHTML = `
-                    <td class="font-mono text-sm">${project.project_id || 'Unknown'}</td>
-                    <td>${formatDate(project.hidden_at)}</td>
+                    <td class="project-name-cell">
+                        <div class="flex items-center gap-2">
+                            <span class="project-name-text ${isUnknownProject ? 'text-base-content/50' : ''}" title="${escapeHtml(projectName)}">${escapeHtml(projectName)}</span>
+                            ${projectId !== 'Unknown' ? `
+                            <a href="${projectUrl}" target="_blank" class="link link-primary flex-shrink-0" title="Open project">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                            </a>
+                            ` : ''}
+                        </div>
+                    </td>
+                    <td title="${formatDate(project.hidden_at)}">${formatRelativeTime(project.hidden_at)}</td>
                     <td>
                         <span class="method-badge ${isManual ? 'method-manual' : 'method-automated'}">
                             ${formatMethod(method)}

@@ -18,7 +18,7 @@ try:
         fetch_respondent_projects, fetch_all_respondent_projects, hide_project_via_api,
         get_hidden_count, process_and_hide_projects, get_hide_progress, hide_progress
     )
-    from ..cache_manager import get_cached_projects, get_cache_stats, mark_projects_hidden_in_cache
+    from ..cache_manager import get_cached_projects, get_cache_stats, mark_projects_hidden_in_cache, get_cached_project_details
     from ..hidden_projects_tracker import (
         get_hidden_projects_count, get_hidden_projects_timeline, get_hidden_projects_stats,
         get_all_hidden_projects
@@ -43,7 +43,7 @@ except ImportError:
         fetch_respondent_projects, fetch_all_respondent_projects, hide_project_via_api,
         get_hidden_count, process_and_hide_projects, get_hide_progress, hide_progress
     )
-    from cache_manager import get_cached_projects, get_cache_stats, mark_projects_hidden_in_cache
+    from cache_manager import get_cached_projects, get_cache_stats, mark_projects_hidden_in_cache, get_cached_project_details
     from hidden_projects_tracker import (
         get_hidden_projects_count, get_hidden_projects_timeline, get_hidden_projects_stats,
         get_all_hidden_projects
@@ -1399,11 +1399,28 @@ def get_history():
         manual_count = sum(method_counts.get(method, 0) for method in manual_methods)
         automated_count = sum(method_counts.get(method, 0) for method in automated_methods)
         
+        # Enrich projects with names from cache
+        enriched_projects = []
+        for project in result['projects']:
+            project_id = project.get('project_id')
+            project_name = None
+            
+            # Try to get project name from cache
+            if project_id and project_details_collection is not None:
+                cached_details = get_cached_project_details(project_details_collection, project_id)
+                if cached_details:
+                    project_name = cached_details.get('name')
+            
+            # Add project name to the project data
+            enriched_project = project.copy()
+            enriched_project['project_name'] = project_name
+            enriched_projects.append(enriched_project)
+        
         return jsonify({
             'manual_count': manual_count,
             'automated_count': automated_count,
             'total_count': result['total'],
-            'projects': result['projects'],
+            'projects': enriched_projects,
             'page': result['page'],
             'limit': result['limit'],
             'total_pages': result['total_pages']

@@ -369,8 +369,8 @@
     </div>
     
     <div class="modal-actions" style="margin-top: 16px;">
-        <button type="button" class="btn-secondary" onclick="closeHideModal()">Cancel</button>
         <button type="button" class="btn-secondary" onclick="hideProjectWithoutFeedback()">Hide without feedback</button>
+        <button type="button" class="btn-secondary" onclick="hideProjectAsApplied()">Hide, I already applied</button>
         <button type="button" class="btn-primary" onclick="hideProjectWithFeedback()">Hide</button>
     </div>
 {% endcall %}
@@ -1427,14 +1427,12 @@
         currentApplyLink = null;
     }
     
-    async function confirmApplied() {
-        if (!currentApplyProjectId) return;
-        
-        const projectIdToHide = currentApplyProjectId;
-        const originalLink = currentApplyLink;
+    // Shared function to mark a project as applied
+    async function markProjectAsApplied(projectId, closeModalCallback) {
+        if (!projectId) return;
         
         // Start visual feedback immediately - find and fade the card
-        const card = findProjectCard(projectIdToHide);
+        const card = findProjectCard(projectId);
         if (card) {
             card.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
             card.style.opacity = '0.5';
@@ -1445,7 +1443,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    project_id: projectIdToHide,
+                    project_id: projectId,
                     hidden_method: 'applied'
                 })
             });
@@ -1459,10 +1457,13 @@
                 throw new Error(error.error || 'Failed to mark project as applied');
             }
             
-            closeApplyConfirmModal();
+            // Close the appropriate modal
+            if (closeModalCallback) {
+                closeModalCallback();
+            }
             
             // Remove project card from DOM without page reload
-            removeProjectCard(projectIdToHide);
+            removeProjectCard(projectId);
             
             // Update hidden count
             await updateHiddenCount();
@@ -1473,6 +1474,11 @@
             console.error('Error marking project as applied:', error);
             showToast('Error marking project as applied: ' + error.message, 'error');
         }
+    }
+    
+    async function confirmApplied() {
+        if (!currentApplyProjectId) return;
+        await markProjectAsApplied(currentApplyProjectId, closeApplyConfirmModal);
     }
     
     function closeHideModal() {
@@ -1489,6 +1495,11 @@
     async function hideProjectWithoutFeedback() {
         if (!currentHideProjectId) return;
         await hideProject(null);
+    }
+    
+    async function hideProjectAsApplied() {
+        if (!currentHideProjectId) return;
+        await markProjectAsApplied(currentHideProjectId, closeHideModal);
     }
     
     async function hideProjectWithFeedback() {
