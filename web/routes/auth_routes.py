@@ -57,34 +57,18 @@ bp = Blueprint('auth', __name__)
 
 @bp.route('/')
 def index():
-    """Home page - redirect to login if not authenticated"""
+    """Home page - show about page"""
     if 'user_id' in session:
         return redirect(url_for('page.dashboard'))
-    return redirect(url_for('auth.login'))
+    return redirect(url_for('page.about'))
 
 
 @bp.route('/login')
 def login():
-    """Login page"""
-    # Check if user is already authenticated
-    email = None
-    config = None
-    is_authenticated = False
-    
+    """Login page - redirect to about page (login is now in modal)"""
     if 'user_id' in session:
-        try:
-            from ..services.user_service import load_user_config
-            from ..services.user_service import get_email_by_user_id
-        except ImportError:
-            from services.user_service import load_user_config
-            from services.user_service import get_email_by_user_id
-        
-        user_id = session['user_id']
-        email = session.get('email') or get_email_by_user_id(user_id)
-        config = load_user_config(user_id)
-        is_authenticated = True
-    
-    return render_template('login.html', email=email, config=config, is_authenticated=is_authenticated)
+        return redirect(url_for('page.dashboard'))
+    return redirect(url_for('page.about'))
 
 
 @bp.route('/api/register/begin', methods=['POST'])

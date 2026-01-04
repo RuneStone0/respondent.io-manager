@@ -41,6 +41,8 @@
 <body>
     {% block body %}{% endblock %}
     
+    {% include 'partials/login_modal.html' %}
+    
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
