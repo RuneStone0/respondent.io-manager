@@ -253,12 +253,48 @@ function closeLearnMoreModal() {
     }
 }
 
-// Close modal on Escape key
+/**
+ * Centralized ESC key handler for all modals
+ * Closes any open modal when ESC is pressed
+ */
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        const modal = document.getElementById('learnMoreModal');
-        if (modal && modal.style.display === 'flex') {
+        // Handle DaisyUI dialog modals (like learnMoreModal)
+        const dialogModal = document.getElementById('learnMoreModal');
+        if (dialogModal && dialogModal.open) {
             closeLearnMoreModal();
+            return;
+        }
+        
+        // Handle custom modal-overlay modals
+        // Check all modal overlays and find visible ones
+        const allModals = document.querySelectorAll('.modal-overlay');
+        const openModals = Array.from(allModals).filter(modal => {
+            const style = window.getComputedStyle(modal);
+            return style.display !== 'none' && style.visibility !== 'hidden';
+        });
+        
+        if (openModals.length > 0) {
+            // Get the topmost modal (last in DOM order, highest z-index)
+            const topModal = openModals.reduce((top, modal) => {
+                const topZ = parseInt(window.getComputedStyle(top).zIndex) || 0;
+                const modalZ = parseInt(window.getComputedStyle(modal).zIndex) || 0;
+                return modalZ > topZ ? modal : top;
+            }, openModals[0]);
+            
+            // Get the close function from data attribute or find it
+            const closeFunction = topModal.getAttribute('data-close-function');
+            if (closeFunction && typeof window[closeFunction] === 'function') {
+                window[closeFunction]();
+            } else {
+                // Fallback: try to find close button and click it
+                const closeBtn = topModal.querySelector('.btn-close-modal');
+                if (closeBtn && closeBtn.onclick) {
+                    closeBtn.onclick();
+                } else if (closeBtn) {
+                    closeBtn.click();
+                }
+            }
         }
     }
 });

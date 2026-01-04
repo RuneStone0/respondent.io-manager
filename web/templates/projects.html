@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/modal.html" import modal %}
 
 {% block title %}Project Preview - Respondent Pro{% endblock %}
 
@@ -322,119 +323,95 @@
 <!-- Session Keys Configuration Modal -->
 
 <!-- Hide Project Feedback Modal -->
-<div class="modal-overlay" id="hideModal" style="display: none;">
-    <div class="modal-content" style="max-width: 700px;">
-        <div class="modal-header">
-            <h2>Hide Project</h2>
-            <button class="btn-close-modal" onclick="closeHideModal()" aria-label="Close">×</button>
+{% call modal('hideModal', 'Hide Project', 'closeHideModal', max_width='700px') %}
+    <!-- Project Preview -->
+    <div id="hideProjectPreview" style="margin-bottom: 24px; padding: 16px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+        <div id="hideProjectPreviewLoading" style="text-align: center; padding: 20px;">
+            <div class="progress-spinner"></div>
+            <p>Loading project details...</p>
         </div>
-        <div class="modal-body">
-            <!-- Project Preview -->
-            <div id="hideProjectPreview" style="margin-bottom: 24px; padding: 16px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
-                <div id="hideProjectPreviewLoading" style="text-align: center; padding: 20px;">
-                    <div class="progress-spinner"></div>
-                    <p>Loading project details...</p>
+        <div id="hideProjectPreviewContent" style="display: none;">
+            <h3 id="hideProjectName" style="margin: 0 0 12px 0; font-size: 18px;"></h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px; font-size: 14px;">
+                <div>
+                    <span style="color: var(--text-secondary);">Incentive:</span>
+                    <strong id="hideProjectIncentive" style="margin-left: 8px;"></strong>
                 </div>
-                <div id="hideProjectPreviewContent" style="display: none;">
-                    <h3 id="hideProjectName" style="margin: 0 0 12px 0; font-size: 18px;"></h3>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px; font-size: 14px;">
-                        <div>
-                            <span style="color: var(--text-secondary);">Incentive:</span>
-                            <strong id="hideProjectIncentive" style="margin-left: 8px;"></strong>
-                        </div>
-                        <div>
-                            <span style="color: var(--text-secondary);">Time:</span>
-                            <strong id="hideProjectTime" style="margin-left: 8px;"></strong>
-                        </div>
-                        <div>
-                            <span style="color: var(--text-secondary);">Hourly Rate:</span>
-                            <strong id="hideProjectHourlyRate" style="margin-left: 8px;"></strong>
-                        </div>
-                        <div id="hideProjectTopicsContainer" style="display: none;">
-                            <span style="color: var(--text-secondary);">Topics:</span>
-                            <div id="hideProjectTopics" style="display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 8px;"></div>
-                        </div>
-                    </div>
-                    <div id="hideProjectDescription" style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);"></div>
+                <div>
+                    <span style="color: var(--text-secondary);">Time:</span>
+                    <strong id="hideProjectTime" style="margin-left: 8px;"></strong>
+                </div>
+                <div>
+                    <span style="color: var(--text-secondary);">Hourly Rate:</span>
+                    <strong id="hideProjectHourlyRate" style="margin-left: 8px;"></strong>
+                </div>
+                <div id="hideProjectTopicsContainer" style="display: none;">
+                    <span style="color: var(--text-secondary);">Topics:</span>
+                    <div id="hideProjectTopics" style="display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 8px;"></div>
                 </div>
             </div>
-            
-            <!-- AI Suggestions -->
-            <div id="hideSuggestionsContainer" style="margin-bottom: 16px;">
-                <p style="margin-bottom: 8px; font-weight: 500; color: var(--text-primary);">Suggested reasons to hide:</p>
-                <div id="hideSuggestions" style="display: flex; flex-wrap: wrap; gap: 8px;">
-                    <!-- Suggestions will be populated here -->
-                </div>
-            </div>
-            
-            <!-- Feedback Textarea -->
-            <div style="margin-bottom: 16px;">
-                <p style="margin-bottom: 8px; font-weight: 500;">Why are you hiding this project? (optional)</p>
-                <textarea id="hideFeedbackText" placeholder="Type your reason or click a suggestion above..." rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical;"></textarea>
-            </div>
-            
-            <div class="modal-actions" style="margin-top: 16px;">
-                <button type="button" class="btn-secondary" onclick="closeHideModal()">Cancel</button>
-                <button type="button" class="btn-secondary" onclick="hideProjectWithoutFeedback()">Hide without feedback</button>
-                <button type="button" class="btn-primary" onclick="hideProjectWithFeedback()">Hide</button>
-            </div>
+            <div id="hideProjectDescription" style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);"></div>
         </div>
     </div>
-</div>
+    
+    <!-- AI Suggestions -->
+    <div id="hideSuggestionsContainer" style="margin-bottom: 16px;">
+        <p style="margin-bottom: 8px; font-weight: 500; color: var(--text-primary);">Suggested reasons to hide:</p>
+        <div id="hideSuggestions" style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <!-- Suggestions will be populated here -->
+        </div>
+    </div>
+    
+    <!-- Feedback Textarea -->
+    <div style="margin-bottom: 16px;">
+        <p style="margin-bottom: 8px; font-weight: 500;">Why are you hiding this project? (optional)</p>
+        <textarea id="hideFeedbackText" placeholder="Type your reason or click a suggestion above..." rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical;"></textarea>
+    </div>
+    
+    <div class="modal-actions" style="margin-top: 16px;">
+        <button type="button" class="btn-secondary" onclick="closeHideModal()">Cancel</button>
+        <button type="button" class="btn-secondary" onclick="hideProjectWithoutFeedback()">Hide without feedback</button>
+        <button type="button" class="btn-primary" onclick="hideProjectWithFeedback()">Hide</button>
+    </div>
+{% endcall %}
 
 <!-- Apply Confirmation Modal -->
-<div class="modal-overlay" id="applyConfirmModal" style="display: none;" onclick="if(event.target === this) closeApplyConfirmModal();">
-    <div class="modal-content" style="max-width: 500px;">
-        <div class="modal-header">
-            <h2>Confirm Application</h2>
-            <button class="btn-close-modal" onclick="closeApplyConfirmModal()" aria-label="Close">×</button>
-        </div>
-        <div class="modal-body">
-            <p style="margin-bottom: 16px; font-size: 16px;">Did you apply for this project?</p>
-            <div id="applyProjectInfo" style="margin-bottom: 24px; padding: 16px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color);">
-                <h3 id="applyProjectTitle" style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: var(--text-primary);"></h3>
-                <a id="applyProjectLink" href="#" target="_blank" style="font-size: 14px; color: var(--primary-color); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
-                        <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
-                    </svg>
-                    View project
-                </a>
-            </div>
-            <div class="modal-actions" style="margin-top: 16px; display: flex; gap: 12px; justify-content: flex-end;">
-                <button type="button" class="btn-secondary" onclick="closeApplyConfirmModal()">No</button>
-                <button type="button" class="btn-primary" onclick="confirmApplied()">Yes</button>
-            </div>
-        </div>
+{% call modal('applyConfirmModal', 'Confirm Application', 'closeApplyConfirmModal', max_width='500px') %}
+    <p style="margin-bottom: 16px; font-size: 16px;">Did you apply for this project?</p>
+    <div id="applyProjectInfo" style="margin-bottom: 24px; padding: 16px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color);">
+        <h3 id="applyProjectTitle" style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: var(--text-primary);"></h3>
+        <a id="applyProjectLink" href="#" target="_blank" style="font-size: 14px; color: var(--primary-color); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+                <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+            </svg>
+            View project
+        </a>
     </div>
-</div>
+    <div class="modal-actions" style="margin-top: 16px; display: flex; gap: 12px; justify-content: flex-end;">
+        <button type="button" class="btn-secondary" onclick="closeApplyConfirmModal()">No</button>
+        <button type="button" class="btn-primary" onclick="confirmApplied()">Yes</button>
+    </div>
+{% endcall %}
 
 <!-- Feedback Management Modal -->
-<div class="modal-overlay" id="feedbackManagementModal" style="display: none;">
-    <div class="modal-content" style="max-width: 800px; max-height: 80vh; display: flex; flex-direction: column;">
-        <div class="modal-header">
-            <h2>Manage Hide Feedback</h2>
-            <button class="btn-close-modal" onclick="closeFeedbackManagementModal()" aria-label="Close">×</button>
+{% call modal('feedbackManagementModal', 'Manage Hide Feedback', 'closeFeedbackManagementModal', max_width='800px', modal_content_class='max-height: 80vh; display: flex; flex-direction: column;', modal_body_class='flex: 1; overflow-y: auto; padding: 20px;') %}
+    <div id="feedbackLoading" style="text-align: center; padding: 40px;">
+        <div class="progress-spinner"></div>
+        <p>Loading feedback...</p>
+    </div>
+    <div id="feedbackContent" style="display: none;">
+        <div id="feedbackList" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Feedback entries will be populated here -->
         </div>
-        <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 20px;">
-            <div id="feedbackLoading" style="text-align: center; padding: 40px;">
-                <div class="progress-spinner"></div>
-                <p>Loading feedback...</p>
-            </div>
-            <div id="feedbackContent" style="display: none;">
-                <div id="feedbackList" style="display: flex; flex-direction: column; gap: 10px;">
-                    <!-- Feedback entries will be populated here -->
-                </div>
-                <div id="feedbackEmpty" style="text-align: center; padding: 40px; color: var(--text-secondary); display: none;">
-                    <p>No feedback entries yet. Feedback is collected when you hide projects and provide a reason.</p>
-                </div>
-            </div>
+        <div id="feedbackEmpty" style="text-align: center; padding: 40px; color: var(--text-secondary); display: none;">
+            <p>No feedback entries yet. Feedback is collected when you hide projects and provide a reason.</p>
         </div>
     </div>
-</div>
+{% endcall %}
 
 <!-- Preview Hide Projects Modal -->
-<div class="modal-overlay" id="previewHideModal" style="display: none;" onclick="if(event.target === this) closePreviewHideModal();">
+<div class="modal-overlay" id="previewHideModal" style="display: none;" onclick="if(event.target === this) closePreviewHideModal();" data-close-function="closePreviewHideModal">
     <div class="modal-content" style="max-width: 900px; max-height: 80vh; display: flex; flex-direction: column;" onclick="event.stopPropagation();">
         <div class="modal-header">
             <h2>Preview Projects to Hide</h2>
@@ -472,22 +449,14 @@
 </div>
 
 <!-- Question Modal -->
-<div class="modal-overlay" id="questionModal" style="display: none;">
-    <div class="modal-content" style="max-width: 500px;">
-        <div class="modal-header">
-            <h2>Help Us Learn Your Preferences</h2>
-            <button class="btn-close-modal" onclick="closeQuestionModal()" aria-label="Close">×</button>
-        </div>
-        <div class="modal-body">
-            <p id="questionText" style="margin-bottom: 24px; font-size: 16px; line-height: 1.5;"></p>
-            <div class="modal-actions" style="display: flex; gap: 12px; justify-content: flex-end;">
-                <button type="button" class="btn-secondary" onclick="skipQuestion()">Skip</button>
-                <button type="button" class="btn-secondary" onclick="answerQuestion(false)">No</button>
-                <button type="button" class="btn-primary" onclick="answerQuestion(true)">Yes</button>
-            </div>
-        </div>
+{% call modal('questionModal', 'Help Us Learn Your Preferences', 'closeQuestionModal', max_width='500px') %}
+    <p id="questionText" style="margin-bottom: 24px; font-size: 16px; line-height: 1.5;"></p>
+    <div class="modal-actions" style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button type="button" class="btn-secondary" onclick="skipQuestion()">Skip</button>
+        <button type="button" class="btn-secondary" onclick="answerQuestion(false)">No</button>
+        <button type="button" class="btn-primary" onclick="answerQuestion(true)">Yes</button>
     </div>
-</div>
+{% endcall %}
 
 
 <!-- Toast Notification Container -->

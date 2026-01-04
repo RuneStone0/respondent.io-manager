@@ -1,0 +1,13 @@
+{% macro modal(id, title, close_function, max_width='600px', click_outside_to_close=true, modal_body_class='', modal_content_class='', modal_content_style='') %}
+<div class="modal-overlay" id="{{ id }}" style="display: none;" {% if click_outside_to_close %}onclick="if(event.target === this) {{ close_function }}();"{% endif %} data-close-function="{{ close_function }}">
+    <div class="modal-content" style="max-width: {{ max_width }}; {{ modal_content_class }}; {{ modal_content_style }}" onclick="event.stopPropagation();">
+        <div class="modal-header">
+            <h2>{{ title }}</h2>
+            <button class="btn-close-modal" onclick="{{ close_function }}()" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body {{ modal_body_class }}">
+            {{ caller() }}
+        </div>
+    </div>
+</div>
+{% endmacro %}
