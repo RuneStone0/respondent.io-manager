@@ -177,7 +177,8 @@
                             </button>
                             <a href="https://app.respondent.io/respondents/v2/projects/view/{{ project.id }}" 
                                target="_blank" 
-                               class="project-link">
+                               class="project-link"
+                               onclick="handleApplyClick(event, '{{ project.id }}', '{{ project.name|replace("'", "\\'") }}')">
                                 <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="margin-right: 6px; vertical-align: middle;">
                                     <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
                                     <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
@@ -376,6 +377,33 @@
                 <button type="button" class="btn-secondary" onclick="closeHideModal()">Cancel</button>
                 <button type="button" class="btn-secondary" onclick="hideProjectWithoutFeedback()">Hide without feedback</button>
                 <button type="button" class="btn-primary" onclick="hideProjectWithFeedback()">Hide</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Apply Confirmation Modal -->
+<div class="modal-overlay" id="applyConfirmModal" style="display: none;" onclick="if(event.target === this) closeApplyConfirmModal();">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2>Confirm Application</h2>
+            <button class="btn-close-modal" onclick="closeApplyConfirmModal()" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 16px; font-size: 16px;">Did you apply for this project?</p>
+            <div id="applyProjectInfo" style="margin-bottom: 24px; padding: 16px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color);">
+                <h3 id="applyProjectTitle" style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: var(--text-primary);"></h3>
+                <a id="applyProjectLink" href="#" target="_blank" style="font-size: 14px; color: var(--primary-color); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+                        <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+                    </svg>
+                    View project
+                </a>
+            </div>
+            <div class="modal-actions" style="margin-top: 16px; display: flex; gap: 12px; justify-content: flex-end;">
+                <button type="button" class="btn-secondary" onclick="closeApplyConfirmModal()">No</button>
+                <button type="button" class="btn-primary" onclick="confirmApplied()">Yes</button>
             </div>
         </div>
     </div>
@@ -1397,6 +1425,85 @@
         const feedbackText = document.getElementById('hideFeedbackText');
         feedbackText.value = suggestion;
         feedbackText.focus();
+    }
+    
+    // Apply confirmation modal state
+    let currentApplyProjectId = null;
+    let currentApplyProjectName = null;
+    let currentApplyLink = null;
+    
+    function handleApplyClick(event, projectId, projectName) {
+        event.preventDefault();
+        event.stopPropagation();
+        currentApplyProjectId = projectId;
+        currentApplyProjectName = projectName;
+        const linkElement = event.target.closest('a') || event.currentTarget;
+        currentApplyLink = linkElement.href;
+        
+        // Update modal with project info
+        document.getElementById('applyProjectTitle').textContent = projectName || 'Project';
+        document.getElementById('applyProjectLink').href = currentApplyLink;
+        
+        // Open the project in a new tab first
+        window.open(currentApplyLink, '_blank');
+        
+        // Then show the confirmation modal
+        document.getElementById('applyConfirmModal').style.display = 'flex';
+    }
+    
+    function closeApplyConfirmModal() {
+        document.getElementById('applyConfirmModal').style.display = 'none';
+        currentApplyProjectId = null;
+        currentApplyProjectName = null;
+        currentApplyLink = null;
+    }
+    
+    async function confirmApplied() {
+        if (!currentApplyProjectId) return;
+        
+        const projectIdToHide = currentApplyProjectId;
+        const originalLink = currentApplyLink;
+        
+        // Start visual feedback immediately - find and fade the card
+        const card = findProjectCard(projectIdToHide);
+        if (card) {
+            card.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+            card.style.opacity = '0.5';
+        }
+        
+        try {
+            const response = await fetch('/api/hide-project', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    project_id: projectIdToHide,
+                    hidden_method: 'applied'
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                // Restore card visibility on error
+                if (card) {
+                    card.style.opacity = '1';
+                }
+                throw new Error(error.error || 'Failed to mark project as applied');
+            }
+            
+            closeApplyConfirmModal();
+            
+            // Remove project card from DOM without page reload
+            removeProjectCard(projectIdToHide);
+            
+            // Update hidden count
+            await updateHiddenCount();
+            
+            // Show notification
+            showToast('Project marked as applied and hidden!', 'success');
+        } catch (error) {
+            console.error('Error marking project as applied:', error);
+            showToast('Error marking project as applied: ' + error.message, 'error');
+        }
     }
     
     function closeHideModal() {

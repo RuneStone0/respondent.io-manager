@@ -576,6 +576,7 @@ def hide_project():
         data = request.json
         project_id = data.get('project_id')
         feedback_text = data.get('feedback_text')
+        hidden_method_param = data.get('hidden_method')
         
         if not project_id:
             return jsonify({'error': 'project_id is required'}), 400
@@ -596,7 +597,13 @@ def hide_project():
         if projects_cache_collection is not None:
             mark_projects_hidden_in_cache(projects_cache_collection, user_id, [project_id])
         
-        hidden_method = 'feedback_based' if feedback_text else 'manual'
+        # Determine hidden method: use provided method, or 'feedback_based' if feedback provided, else 'manual'
+        if hidden_method_param:
+            hidden_method = hidden_method_param
+        elif feedback_text:
+            hidden_method = 'feedback_based'
+        else:
+            hidden_method = 'manual'
         
         # Get project data for AI analysis
         project_data = None
@@ -634,8 +641,9 @@ def hide_project():
                 )
         
         # Generate AI question if no feedback provided (feedback means user already explained)
+        # Skip question generation for 'applied' method
         question = None
-        if not feedback_text and project_data:
+        if not feedback_text and project_data and hidden_method != 'applied':
             # Check if we've already asked this type of question before
             prefs = get_user_preferences(user_preferences_collection, user_id) if user_preferences_collection is not None else {}
             existing_question_ids = {qa.get('question_id') for qa in prefs.get('question_answers', [])}
@@ -1369,7 +1377,7 @@ def get_history():
         )
         
         # Count manual vs automated
-        manual_methods = ['manual', 'feedback_based']
+        manual_methods = ['manual', 'feedback_based', 'applied']
         automated_methods = ['auto', 'ai_auto', 'auto_similar', 'category']
         
         # Count by method

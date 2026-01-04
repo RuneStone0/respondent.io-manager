@@ -112,13 +112,14 @@ let currentPage = 1;
 const itemsPerPage = 50;
 
 // Method classification
-const manualMethods = ['manual', 'feedback_based'];
+const manualMethods = ['manual', 'feedback_based', 'applied'];
 const automatedMethods = ['auto', 'ai_auto', 'auto_similar', 'category'];
 
 function formatMethod(method) {
     const methodMap = {
         'manual': 'Manual',
         'feedback_based': 'Feedback Based',
+        'applied': 'Applied',
         'auto': 'Auto',
         'ai_auto': 'AI Auto',
         'auto_similar': 'Auto Similar',

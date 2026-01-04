@@ -26,11 +26,11 @@
         
         <div class="space-y-4">
             <!-- Checklist Item 1: Account Status -->
-            <div class="collapse collapse-plus bg-base-200 {% if has_account %}border-2 border-success{% else %}border-2 border-base-300{% endif %}">
+            <div id="checklistItem1" class="collapse collapse-plus bg-base-200 {% if has_account %}border-2 border-success{% else %}border-2 border-base-300{% endif %}">
                 <input type="checkbox" id="hasAccountCheckbox" {% if has_account %}checked{% endif %} />
                 <div class="collapse-title text-lg font-semibold flex items-center justify-between">
                     <span>Do you have an account at respondent.io already?</span>
-                    <span class="badge {% if has_account %}badge-success{% else %}badge-warning{% endif %}">
+                    <span class="badge checklist-item-status {% if has_account %}badge-success{% else %}badge-warning{% endif %}">
                         {% if has_account %}Completed{% else %}Pending{% endif %}
                     </span>
                 </div>
@@ -50,11 +50,11 @@
             </div>
             
             <!-- Checklist Item 2: Credentials -->
-            <div class="collapse collapse-plus bg-base-200 {% if has_valid_credentials %}border-2 border-success{% else %}border-2 border-base-300{% endif %}">
+            <div id="checklistItem2" class="collapse collapse-plus bg-base-200 {% if has_valid_credentials %}border-2 border-success{% else %}border-2 border-base-300{% endif %}">
                 <input type="checkbox" id="hasCredentialsCheckbox" {% if has_valid_credentials %}checked disabled{% endif %} />
                 <div class="collapse-title text-lg font-semibold flex items-center justify-between">
                     <span>Provide respondent.io credentials to Respondent Pro</span>
-                    <span class="badge {% if has_valid_credentials %}badge-success{% else %}badge-warning{% endif %}">
+                    <span class="badge checklist-item-status {% if has_valid_credentials %}badge-success{% else %}badge-warning{% endif %}">
                         {% if has_valid_credentials %}Completed{% else %}Pending{% endif %}
                     </span>
                 </div>
@@ -128,8 +128,9 @@
         hasAccountCheckbox.addEventListener('change', async function(e) {
             const hasAccount = e.target.checked;
             const checklistItem = document.getElementById('checklistItem1');
+            if (!checklistItem) return;
             const statusSpan = checklistItem.querySelector('.checklist-item-status');
-            const contentDiv = checklistItem.querySelector('.checklist-item-content');
+            if (!statusSpan) return;
             
             try {
                 const response = await fetch('/api/onboarding/has-account', {
@@ -146,20 +147,18 @@
                 // Update UI
                 if (hasAccount) {
                     checklistItem.classList.add('completed');
+                    checklistItem.classList.remove('border-base-300');
+                    checklistItem.classList.add('border-success');
                     statusSpan.textContent = 'Completed';
-                    statusSpan.classList.remove('pending');
-                    statusSpan.classList.add('completed');
-                    if (contentDiv) {
-                        contentDiv.style.display = 'none';
-                    }
+                    statusSpan.classList.remove('badge-warning', 'pending');
+                    statusSpan.classList.add('badge-success', 'completed');
                 } else {
                     checklistItem.classList.remove('completed');
+                    checklistItem.classList.remove('border-success');
+                    checklistItem.classList.add('border-base-300');
                     statusSpan.textContent = 'Pending';
-                    statusSpan.classList.remove('completed');
-                    statusSpan.classList.add('pending');
-                    if (contentDiv) {
-                        contentDiv.style.display = 'block';
-                    }
+                    statusSpan.classList.remove('badge-success', 'completed');
+                    statusSpan.classList.add('badge-warning', 'pending');
                 }
             } catch (error) {
                 // Revert checkbox state on error
@@ -427,15 +426,24 @@
                         
                         // Update checklist item
                         const checklistItem = document.getElementById('checklistItem2');
-                        const statusSpan = checklistItem.querySelector('.checklist-item-status');
-                        const checkbox = document.getElementById('hasCredentialsCheckbox');
-                        
-                        checklistItem.classList.add('completed');
-                        statusSpan.textContent = 'Completed';
-                        statusSpan.classList.remove('pending');
-                        statusSpan.classList.add('completed');
-                        checkbox.checked = true;
-                        checkbox.disabled = true;
+                        if (checklistItem) {
+                            const statusSpan = checklistItem.querySelector('.checklist-item-status');
+                            const checkbox = document.getElementById('hasCredentialsCheckbox');
+                            
+                            if (statusSpan) {
+                                checklistItem.classList.add('completed');
+                                checklistItem.classList.remove('border-base-300');
+                                checklistItem.classList.add('border-success');
+                                statusSpan.textContent = 'Completed';
+                                statusSpan.classList.remove('badge-warning', 'pending');
+                                statusSpan.classList.add('badge-success', 'completed');
+                            }
+                            
+                            if (checkbox) {
+                                checkbox.checked = true;
+                                checkbox.disabled = true;
+                            }
+                        }
                         
                         // Redirect to projects page after a short delay
                         setTimeout(() => {
