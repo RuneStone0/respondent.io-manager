@@ -167,6 +167,22 @@ def history():
     return render_template('history.html', email=email)
 
 
+@bp.route('/about')
+def about():
+    """About page - information about Respondent Pro"""
+    email = session.get('email') if 'user_id' in session else None
+    return render_template('about.html', email=email)
+
+
+@bp.route('/support')
+@require_verified
+def support():
+    """Support page - contact form for authenticated users"""
+    user_id = session['user_id']
+    email = session.get('email', 'User')
+    return render_template('support.html', email=email)
+
+
 @bp.route('/projects')
 @require_verified
 def projects():

@@ -59,7 +59,7 @@
                 <div class="text-lg font-semibold text-base-content mt-2.5 mb-3">Curate Projects</div>
                 <div class="text-sm text-base-content/70 leading-relaxed mb-3">
                     Use Respondent Pro to easily curate projects on Respondent.io. 
-                    <a href="#" class="text-accent-purple font-medium hover:underline" onclick="openLearnMoreModal(); return false;">Learn More</a>
+                    <a href="/about" class="text-accent-purple font-medium hover:underline">Learn More</a>
                 </div>
                 <button class="w-full bg-gradient-to-r from-accent-purple to-purple-600 text-white py-3.5 px-7 rounded-lg text-base font-semibold mt-3 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg" onclick="document.getElementById('authEmail').focus(); document.querySelector('.auth-section').scrollIntoView({ behavior: 'smooth' });">
                     Get started
@@ -133,32 +133,6 @@
     </div>
 </div>
 
-<!-- Learn More Modal (DaisyUI) -->
-<dialog id="learnMoreModal" class="modal">
-    <div class="modal-box">
-        <form method="dialog">
-            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="closeLearnMoreModal()">✕</button>
-        </form>
-        <h3 class="font-bold text-lg mb-4">Why Respondent Pro?</h3>
-        <div class="space-y-5">
-            <p class="text-base leading-relaxed text-base-content">
-                <strong>The Problem:</strong> Respondent.io has poor filtering capabilities. I found myself spending a lot of time curating projects, hiding them, and occasionally I forgot about it (lost opportunities).
-            </p>
-            <p class="text-base leading-relaxed text-base-content">
-                <strong>The Solution:</strong> That's why I built Respondent Pro to help manage all the projects and automate the filtering to maximize my profits.
-            </p>
-            <p class="text-base leading-relaxed text-base-content">
-                RespondentPro is a hobby project I created for myself, but decided to share with the world. The first 1,000 projects hidden you'll get for free - you'll get all the features (AI-driven personalized curation of projects) at no cost.
-            </p>
-            <p class="text-base leading-relaxed text-base-content">
-                After that, you can pay as you go at $5 for every 1,000 projects hidden, or get a lifetime membership at $50 for unlimited projects.
-            </p>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button onclick="closeLearnMoreModal()">close</button>
-    </form>
-</dialog>
 {% endblock %}
 
 {% block extra_js %}
@@ -608,19 +582,6 @@
         }
     }
     
-    function openLearnMoreModal() {
-        const modal = document.getElementById('learnMoreModal');
-        if (modal) {
-            modal.showModal();
-        }
-    }
-    
-    function closeLearnMoreModal() {
-        const modal = document.getElementById('learnMoreModal');
-        if (modal) {
-            modal.close();
-        }
-    }
     
 </script>
 {% endblock %}

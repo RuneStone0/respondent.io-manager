@@ -312,3 +312,53 @@ You can manage your notification preferences: {notifications_url}
         html_body=html_body,
         text_body=text_body
     )
+
+
+def send_support_email(user_email, question):
+    """Send support request email to admin"""
+    config = get_smtp_config()
+    admin_email = os.environ.get('SUPPORT_EMAIL', config.get('from_email', 'rtk@rtk-cv.dk'))
+    
+    # Create HTML email body
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Support Request - Respondent Pro</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #667eea;">New Support Request</h1>
+            <p><strong>From:</strong> {user_email}</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+            <h2 style="color: #333;">Question/Message:</h2>
+            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <p style="white-space: pre-wrap; margin: 0;">{question}</p>
+            </div>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+            <p style="color: #666; font-size: 12px;">This is an automated support request from Respondent Pro.</p>
+        </div>
+    </body>
+    </html>
+    """
+    
+    # Plain text version
+    text_body = f"""
+New Support Request
+
+From: {user_email}
+
+Question/Message:
+{question}
+
+---
+This is an automated support request from Respondent Pro.
+"""
+    
+    return send_email(
+        to_email=admin_email,
+        subject=f"Support Request from {user_email} - Respondent Pro",
+        html_body=html_body,
+        text_body=text_body
+    )

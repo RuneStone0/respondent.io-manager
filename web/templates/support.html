@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Support - Respondent Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .form-label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+    }
+    .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .form-input:focus {
+        outline: none;
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .form-textarea {
+        min-height: 150px;
+        resize: vertical;
+        font-family: inherit;
+    }
+    .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.75rem 2rem;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .btn-submit:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .btn-submit:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    .alert {
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .alert-success {
+        background-color: #d1fae5;
+        color: #065f46;
+        border: 1px solid #6ee7b7;
+    }
+    .alert-error {
+        background-color: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+    }
+    .alert.hidden {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+    <div class="max-w-3xl mx-auto px-4 py-8 md:py-12">
+        <!-- Header -->
+        <div class="mb-8">
+            {% include 'partials/header.html' %}
+        </div>
+
+        <!-- Page Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold mb-4 text-base-content">Support</h1>
+            <p class="text-lg text-base-content/70">We're here to help! Send us your questions or feedback.</p>
+        </div>
+
+        <!-- Support Form -->
+        <div class="bg-base-100 rounded-2xl p-8 shadow-lg">
+            <div id="alertContainer"></div>
+            
+            <form id="supportForm">
+                <div class="form-group">
+                    <label for="question" class="form-label">Question or Message</label>
+                    <textarea 
+                        id="question" 
+                        name="question" 
+                        class="form-input form-textarea" 
+                        required
+                        placeholder="Please describe your question or issue in detail..."
+                    ></textarea>
+                </div>
+
+                <div class="flex justify-end gap-4">
+                    <button 
+                        type="button" 
+                        onclick="window.history.back()" 
+                        class="btn btn-ghost"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit" 
+                        id="submitBtn"
+                        class="btn-submit"
+                    >
+                        Send Message
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('supportForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('submitBtn');
+    const alertContainer = document.getElementById('alertContainer');
+    const form = e.target;
+    
+    // Get form data
+    const question = document.getElementById('question').value.trim();
+    
+    // Validate
+    if (!question) {
+        showAlert('Please enter your question or message.', 'error');
+        return;
+    }
+    
+    // Disable submit button
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+    
+    // Clear previous alerts
+    alertContainer.innerHTML = '';
+    
+    try {
+        const response = await fetch('/api/support', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                question: question
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            showAlert(data.message || 'Support request submitted successfully! We will get back to you soon.', 'success');
+            form.reset();
+        } else {
+            showAlert(data.error || 'Failed to submit support request. Please try again.', 'error');
+        }
+    } catch (error) {
+        showAlert('An error occurred. Please try again later.', 'error');
+        console.error('Error submitting support request:', error);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Message';
+    }
+});
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alertContainer');
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    alert.textContent = message;
+    alertContainer.innerHTML = '';
+    alertContainer.appendChild(alert);
+    
+    // Scroll to top to show alert
+    alertContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
+{% endblock %}

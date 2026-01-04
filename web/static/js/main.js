@@ -227,45 +227,11 @@ if (document.readyState === 'loading') {
    ============================================ */
 
 /**
- * Open the Learn More modal
- */
-function openLearnMoreModal() {
-    const modal = document.getElementById('learnMoreModal');
-    if (modal) {
-        modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-        // Focus on close button for accessibility
-        const closeBtn = modal.querySelector('.btn-close-modal');
-        if (closeBtn) {
-            setTimeout(() => closeBtn.focus(), 100);
-        }
-    }
-}
-
-/**
- * Close the Learn More modal
- */
-function closeLearnMoreModal() {
-    const modal = document.getElementById('learnMoreModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-    }
-}
-
-/**
  * Centralized ESC key handler for all modals
  * Closes any open modal when ESC is pressed
  */
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        // Handle DaisyUI dialog modals (like learnMoreModal)
-        const dialogModal = document.getElementById('learnMoreModal');
-        if (dialogModal && dialogModal.open) {
-            closeLearnMoreModal();
-            return;
-        }
-        
         // Handle custom modal-overlay modals
         // Check all modal overlays and find visible ones
         const allModals = document.querySelectorAll('.modal-overlay');

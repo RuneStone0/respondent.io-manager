@@ -36,6 +36,7 @@ try:
         project_details_collection, ai_analysis_cache_collection
     )
     from ..services.topics_service import get_all_topics
+    from ..services.email_service import send_support_email
 except ImportError:
     from services.user_service import load_user_config, save_user_config, load_user_filters, save_user_filters, update_last_synced, update_user_onboarding_status, get_user_onboarding_status
     from services.respondent_auth_service import create_respondent_session, verify_respondent_authentication, fetch_and_store_user_profile
@@ -61,6 +62,7 @@ except ImportError:
         project_details_collection, ai_analysis_cache_collection
     )
     from services.topics_service import get_all_topics
+    from services.email_service import send_support_email
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -1424,6 +1426,41 @@ def get_history():
             'page': result['page'],
             'limit': result['limit'],
             'total_pages': result['total_pages']
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e) + '\n' + traceback.format_exc()}), 500
+
+
+@bp.route('/support', methods=['POST'])
+def submit_support():
+    """Submit a support request (authenticated users only)"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    user_email = session.get('email')
+    
+    if not user_email:
+        return jsonify({'error': 'Email not found in session'}), 400
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        question = data.get('question', '').strip()
+        
+        if not question:
+            return jsonify({'error': 'Question is required'}), 400
+        
+        # Send support email using the authenticated user's email
+        send_support_email(user_email, question)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Support request submitted successfully. We will get back to you soon!'
         })
         
     except Exception as e:

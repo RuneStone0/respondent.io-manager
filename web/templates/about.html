@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}About - Respondent Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .feature-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .feature-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+    .gradient-text {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .support-link {
+        transition: all 0.2s ease;
+    }
+    .support-link:hover {
+        transform: translateX(4px);
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+    <div class="max-w-5xl mx-auto px-4 py-8 md:py-12">
+        <!-- Header -->
+        <div class="mb-8">
+            {% include 'partials/header.html' %}
+        </div>
+
+        <!-- Hero Section -->
+        <div class="text-center mb-12">
+            <h1 class="text-5xl md:text-6xl font-bold mb-4 gradient-text">Respondent Pro</h1>
+            <p class="text-xl text-base-content/70 mb-2">AI-powered project curation for Respondent.io</p>
+            <p class="text-base text-base-content/60">Maximize your profits by automating project filtering and never miss an opportunity</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="space-y-8">
+            <!-- The Problem Section -->
+            <section class="bg-base-100 rounded-2xl p-8 shadow-lg">
+                <h2 class="text-3xl font-bold mb-6 text-base-content">The Problem</h2>
+                <div class="space-y-4 text-base leading-relaxed text-base-content/80">
+                    <p>
+                        <strong class="text-base-content">Poor Filtering Capabilities:</strong> Respondent.io has limited filtering options, forcing you to manually curate projects one by one. This time-consuming process often leads to missed opportunities when you forget to check back regularly.
+                    </p>
+                    <p>
+                        <strong class="text-base-content">No Email Notifications:</strong> Respondent.io doesn't send email notifications when projects are ready for review. Without proactive alerts, you're likely to leave money on the floor by missing opportunities that you would have otherwise applied to.
+                    </p>
+                    <p>
+                        <strong class="text-base-content">Time Investment vs. ROI:</strong> Without visibility into hourly rates and proper filtering, you risk spending significant time on projects with low incentives—curating, completing screening surveys, and conducting interviews—only to realize a very low return on investment.
+                    </p>
+                </div>
+            </section>
+
+            <!-- The Solution Section -->
+            <section class="bg-base-100 rounded-2xl p-8 shadow-lg">
+                <h2 class="text-3xl font-bold mb-6 text-base-content">The Solution</h2>
+                <p class="text-lg leading-relaxed text-base-content/80 mb-6">
+                    Respondent Pro was built to help you manage all your projects and automate filtering to maximize your profits. Our AI-driven platform learns from your preferences and continuously improves to save you time and increase your earnings.
+                </p>
+            </section>
+
+            <!-- Features Section -->
+            <section class="bg-base-100 rounded-2xl p-8 shadow-lg">
+                <h2 class="text-3xl font-bold mb-6 text-base-content">What Respondent Pro Gives You</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="feature-card bg-base-200 rounded-xl p-6">
+                        <div class="flex items-start gap-4">
+                            <div class="w-12 h-12 rounded-lg bg-accent-purple/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-accent-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-lg mb-2 text-base-content">Hourly Rate Filtering</h3>
+                                <p class="text-sm text-base-content/70">Automate filtering based on hourly rates to focus your time where ROI matches your requirements. This critical metric isn't even visible in respondent.io.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feature-card bg-base-200 rounded-xl p-6">
+                        <div class="flex items-start gap-4">
+                            <div class="w-12 h-12 rounded-lg bg-accent-purple/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-accent-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-lg mb-2 text-base-content">Max Incentive Filtering</h3>
+                                <p class="text-sm text-base-content/70">Focus on high-value projects. Avoid wasting time on low-incentive projects that result in poor ROI after all the screening and interview time.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feature-card bg-base-200 rounded-xl p-6">
+                        <div class="flex items-start gap-4">
+                            <div class="w-12 h-12 rounded-lg bg-accent-purple/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-accent-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-lg mb-2 text-base-content">Location-Based Filtering</h3>
+                                <p class="text-sm text-base-content/70">Automate filtering based on location preferences—choose between remote and in-person projects that fit your lifestyle.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feature-card bg-base-200 rounded-xl p-6">
+                        <div class="flex items-start gap-4">
+                            <div class="w-12 h-12 rounded-lg bg-accent-purple/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-accent-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-lg mb-2 text-base-content">Topic-Based Filtering</h3>
+                                <p class="text-sm text-base-content/70">Filter projects by topics that interest you, ensuring you only see opportunities aligned with your expertise and interests.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feature-card bg-base-200 rounded-xl p-6">
+                        <div class="flex items-start gap-4">
+                            <div class="w-12 h-12 rounded-lg bg-accent-purple/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-accent-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-lg mb-2 text-base-content">Customizable Reminders</h3>
+                                <p class="text-sm text-base-content/70">Respondent.io doesn't provide reminders. RespondentPro lets you configure Daily or Weekly email reminders so you never miss an opportunity.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feature-card bg-base-200 rounded-xl p-6">
+                        <div class="flex items-start gap-4">
+                            <div class="w-12 h-12 rounded-lg bg-accent-purple/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-accent-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-lg mb-2 text-base-content">AI-Powered Learning</h3>
+                                <p class="text-sm text-base-content/70">When you hide projects, we record why you made that decision and use that knowledge to automatically hide similar projects in the future, further reducing curation time.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pricing Section -->
+            <section class="bg-base-100 rounded-2xl p-8 shadow-lg">
+                <h2 class="text-3xl font-bold mb-6 text-base-content">Pricing</h2>
+                <div class="space-y-4 text-base leading-relaxed text-base-content/80">
+                    <p>
+                        RespondentPro is a hobby project I created for myself, but decided to share with the world. The first <strong class="text-base-content">1,000 projects hidden</strong> you'll get for free—you'll get all the features (AI-driven personalized curation of projects) at no cost.
+                    </p>
+                    <p>
+                        After that, you can <strong class="text-base-content">pay as you go at $5 for every 1,000 projects hidden</strong>, or get a <strong class="text-base-content">lifetime membership at $50</strong> for unlimited projects.
+                    </p>
+                </div>
+            </section>
+
+            <!-- Support Section -->
+            <section class="bg-base-100 rounded-2xl p-8 shadow-lg">
+                <h2 class="text-3xl font-bold mb-6 text-base-content">Support & Feedback</h2>
+                <p class="text-base leading-relaxed text-base-content/80 mb-6">
+                    We'd love to hear from you! Whether you have questions, suggestions, or need help, we're here to assist.
+                </p>
+                <div class="space-y-4">
+                    <!-- Contact Support Form -->
+                    <div class="flex items-center gap-4 p-4 bg-base-200 rounded-lg">
+                        <div class="w-10 h-10 rounded-lg bg-accent-purple/20 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-accent-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-base-content mb-1">Contact Support</h3>
+                            <a href="/support" class="text-accent-purple hover:underline support-link inline-flex items-center gap-2">
+                                Send us a message
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 p-4 bg-base-200 rounded-lg">
+                        <div class="w-10 h-10 rounded-lg bg-accent-purple/20 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-accent-purple" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-base-content mb-1">GitHub Issues</h3>
+                            <a href="https://github.com/RuneStone0/RespondentPro/issues" target="_blank" rel="noopener noreferrer" class="text-accent-purple hover:underline support-link inline-flex items-center gap-2">
+                                Report an issue or suggest a feature
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}
