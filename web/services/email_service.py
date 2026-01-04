@@ -233,8 +233,6 @@ def send_weekly_summary_email(email, project_count):
     # Plain text version
     text_body = f"""Weekly Project Summary - Respondent Pro
 
-Hello!
-
 You have {project_count} project{plural} available that {is_are} not hidden.
 
 View your projects: {projects_url}
