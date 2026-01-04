@@ -52,9 +52,9 @@ if [ "$MODE" == "https" ]; then
     echo ""
 
     # Run with gunicorn (better SSL support than Flask dev server)
-    # Suppress SSL certificate warnings for local development with self-signed certs
+    # SSL certificate warnings are already suppressed in web/app.py
     # --reload enables auto-reload on code changes (like Flask debug mode)
-    PYTHONWARNINGS="ignore::ssl.SSLError" gunicorn \
+    gunicorn \
         --bind $HOST:$PORT \
         --workers 1 \
         --threads 8 \
