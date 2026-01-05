@@ -81,9 +81,97 @@
                 {% endif %}
             </div>
         </div>
+        
+        <!-- Billing Section -->
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold text-base-content mb-4">Billing</h2>
+            <div class="bg-base-200 border-2 border-base-300 rounded-lg p-6">
+                {% if billing_info %}
+                    {% set processed = billing_info.projects_processed_count or 0 %}
+                    {% set limit = billing_info.projects_processed_limit or 500 %}
+                    {% set remaining = billing_info.projects_remaining %}
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <div class="text-sm text-base-content/70 mb-2">Projects Processed</div>
+                            <div class="text-2xl font-bold text-base-content">
+                                {{ processed }} / {{ limit if limit < 999999999 else 'Unlimited' }}
+                            </div>
+                        </div>
+                        
+                        {% if remaining is not none %}
+                            <div>
+                                <div class="text-sm text-base-content/70 mb-2">Projects Remaining</div>
+                                <div class="text-2xl font-bold {% if remaining < limit * 0.1 %}text-warning{% elif remaining == 0 %}text-error{% else %}text-success{% endif %}">
+                                    {{ remaining }}
+                                </div>
+                            </div>
+                        {% else %}
+                            <div>
+                                <div class="text-sm text-base-content/70 mb-2">Projects Remaining</div>
+                                <div class="text-2xl font-bold text-success">Unlimited</div>
+                            </div>
+                        {% endif %}
+                        
+                        {% if remaining is not none and remaining < limit * 0.1 and remaining > 0 %}
+                            <div class="alert alert-warning mt-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <span>You're running low on credits. <a href="/support?upgrade=500" class="link link-hover font-semibold">Contact support</a> to upgrade.</span>
+                            </div>
+                        {% elif remaining is not none and remaining == 0 %}
+                            <div class="alert alert-error mt-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>You've reached your limit. <a href="/support?upgrade=500" class="link link-hover font-semibold">Contact support</a> to upgrade.</span>
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Upgrade Options -->
+                        {% if remaining is not none %}
+                        <div class="mt-6 pt-6 border-t border-base-300">
+                            <h3 class="text-lg font-semibold text-base-content mb-4">Upgrade Your Account</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="bg-base-100 rounded-lg p-5 border border-base-300 flex flex-col">
+                                    <div class="flex-1">
+                                        <div class="flex justify-between items-start mb-3">
+                                            <div class="flex-1">
+                                                <h4 class="font-semibold text-base-content text-lg mb-1">500 More Projects</h4>
+                                                <p class="text-sm text-base-content/70">Get 500 additional projects</p>
+                                            </div>
+                                            <span class="text-2xl font-bold text-base-content ml-4">$5</span>
+                                        </div>
+                                    </div>
+                                    <a href="/support?upgrade=500" class="btn btn-primary w-full mt-4">Contact Support</a>
+                                </div>
+                                <div class="bg-base-100 rounded-lg p-5 border border-base-300 flex flex-col">
+                                    <div class="flex-1">
+                                        <div class="flex justify-between items-start mb-3">
+                                            <div class="flex-1">
+                                                <h4 class="font-semibold text-base-content text-lg mb-1">Lifetime Upgrade</h4>
+                                                <p class="text-sm text-base-content/70">Unlimited projects forever</p>
+                                            </div>
+                                            <span class="text-2xl font-bold text-base-content ml-4">$50</span>
+                                        </div>
+                                    </div>
+                                    <a href="/support?upgrade=lifetime" class="btn btn-primary w-full mt-4">Contact Support</a>
+                                </div>
+                            </div>
+                            <p class="text-sm text-base-content/70 mt-4">
+                                To upgrade, click "Contact Support" above for your preferred option, or <a href="/support" class="link link-primary">contact support</a> directly. We'll update your account after payment is received.
+                            </p>
+                        </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="text-base-content/70">Billing information unavailable.</div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 
-<script>
 <script src="{{ url_for('static', filename='js/account.js') }}"></script>
 {% endblock %}

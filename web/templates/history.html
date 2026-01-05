@@ -37,7 +37,14 @@
         <h1 class="text-2xl font-semibold text-base-content mb-6">Hidden Projects History</h1>
         
         <!-- Statistics Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="stat-card">
+                <div>
+                    <div class="text-sm text-base-content/70 mb-1">Total Projects Processed</div>
+                    <div class="text-3xl font-bold text-base-content" id="totalProcessed">-</div>
+                </div>
+            </div>
+            
             <div class="stat-card">
                 <div>
                     <div class="text-sm text-base-content/70 mb-1">Manually Hidden</div>
@@ -230,6 +237,7 @@ async function loadHistory(page = 1) {
         }
         
         // Update counts
+        document.getElementById('totalProcessed').textContent = data.total_projects_processed || 0;
         document.getElementById('manualCount').textContent = data.manual_count || 0;
         document.getElementById('automatedCount').textContent = data.automated_count || 0;
         

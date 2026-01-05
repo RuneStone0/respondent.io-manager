@@ -12,7 +12,7 @@ from datetime import datetime
 
 # Import services
 try:
-    from ..services.user_service import load_user_config, save_user_config, load_user_filters, save_user_filters, update_last_synced, update_user_onboarding_status, get_user_onboarding_status
+    from ..services.user_service import load_user_config, save_user_config, load_user_filters, save_user_filters, update_last_synced, update_user_onboarding_status, get_user_onboarding_status, get_projects_processed_count, get_user_billing_info, check_user_has_credits, is_admin, update_user_billing_limit, check_and_send_credit_notifications
     from ..services.respondent_auth_service import create_respondent_session, verify_respondent_authentication, fetch_and_store_user_profile
     from ..services.project_service import (
         fetch_respondent_projects, fetch_all_respondent_projects, hide_project_via_api,
@@ -38,7 +38,7 @@ try:
     from ..services.topics_service import get_all_topics
     from ..services.email_service import send_support_email
 except ImportError:
-    from services.user_service import load_user_config, save_user_config, load_user_filters, save_user_filters, update_last_synced, update_user_onboarding_status, get_user_onboarding_status
+    from services.user_service import load_user_config, save_user_config, load_user_filters, save_user_filters, update_last_synced, update_user_onboarding_status, get_user_onboarding_status, get_projects_processed_count, get_user_billing_info, check_user_has_credits, is_admin, update_user_billing_limit, check_and_send_credit_notifications
     from services.respondent_auth_service import create_respondent_session, verify_respondent_authentication, fetch_and_store_user_profile
     from services.project_service import (
         fetch_respondent_projects, fetch_all_respondent_projects, hide_project_via_api,
@@ -333,6 +333,24 @@ def hide_projects():
     
     try:
         user_id = session['user_id']
+        
+        # Check user credits before starting
+        try:
+            billing_info = get_user_billing_info(user_id)
+            limit = billing_info.get('projects_processed_limit', 500)
+            processed = billing_info.get('projects_processed_count', 0)
+            
+            # If limit is None or very large (effectively unlimited), skip check
+            if limit is not None and limit < 999999999:
+                if processed >= limit:
+                    return jsonify({
+                        'error': f'You have reached your project processing limit ({limit} projects). Please contact support to upgrade.',
+                        'redirect': '/account'
+                    }), 403
+        except Exception as e:
+            print(f"Warning: Could not check billing info: {e}")
+            # Continue anyway - don't block on billing info errors
+        
         config = load_user_config(user_id)
         filters = load_user_filters(user_id)
         
@@ -575,6 +593,24 @@ def hide_project():
     
     try:
         user_id = str(session['user_id'])
+        
+        # Check user credits before hiding
+        try:
+            billing_info = get_user_billing_info(user_id)
+            limit = billing_info.get('projects_processed_limit', 500)
+            processed = billing_info.get('projects_processed_count', 0)
+            
+            # If limit is None or very large (effectively unlimited), skip check
+            if limit is not None and limit < 999999999:
+                if processed >= limit:
+                    return jsonify({
+                        'error': f'You have reached your project processing limit ({limit} projects). Please contact support to upgrade.',
+                        'redirect': '/account'
+                    }), 403
+        except Exception as e:
+            print(f"Warning: Could not check billing info: {e}")
+            # Continue anyway - don't block on billing info errors
+        
         data = request.json
         project_id = data.get('project_id')
         feedback_text = data.get('feedback_text')
@@ -653,6 +689,13 @@ def hide_project():
             question_data = generate_question_from_project(project_data)
             if question_data and question_data.get('id') not in existing_question_ids:
                 question = question_data
+        
+        # Check and send credit notifications after hiding project
+        try:
+            check_and_send_credit_notifications(user_id)
+        except Exception as e:
+            print(f"Error checking credit notifications: {e}")
+            # Don't fail the operation if notification check fails
         
         return jsonify({
             'success': True,
@@ -1401,6 +1444,9 @@ def get_history():
         manual_count = sum(method_counts.get(method, 0) for method in manual_methods)
         automated_count = sum(method_counts.get(method, 0) for method in automated_methods)
         
+        # Get total projects processed count
+        total_projects_processed = get_projects_processed_count(user_id)
+        
         # Enrich projects with names from cache
         enriched_projects = []
         for project in result['projects']:
@@ -1422,10 +1468,58 @@ def get_history():
             'manual_count': manual_count,
             'automated_count': automated_count,
             'total_count': result['total'],
+            'total_projects_processed': total_projects_processed,
             'projects': enriched_projects,
             'page': result['page'],
             'limit': result['limit'],
             'total_pages': result['total_pages']
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e) + '\n' + traceback.format_exc()}), 500
+
+
+@bp.route('/admin/update-user-billing', methods=['POST'])
+def update_user_billing():
+    """Update user billing limit (admin only)"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    
+    # Check if user is admin
+    if not is_admin(user_id):
+        return jsonify({'error': 'Unauthorized - admin access required'}), 403
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        target_user_id = data.get('user_id')
+        new_limit = data.get('projects_processed_limit')
+        
+        if not target_user_id:
+            return jsonify({'error': 'user_id is required'}), 400
+        
+        if new_limit is None:
+            return jsonify({'error': 'projects_processed_limit is required'}), 400
+        
+        # Validate limit
+        try:
+            new_limit = int(new_limit)
+            if new_limit < 0:
+                return jsonify({'error': 'Limit must be a positive integer'}), 400
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid limit value'}), 400
+        
+        # Update user billing limit
+        update_user_billing_limit(target_user_id, new_limit)
+        
+        return jsonify({
+            'success': True,
+            'message': 'User billing limit updated successfully'
         })
         
     except Exception as e:
@@ -1455,8 +1549,26 @@ def submit_support():
         if not question:
             return jsonify({'error': 'Question is required'}), 400
         
+        # Get user billing info to include in email
+        try:
+            from ..services.user_service import get_user_billing_info
+        except ImportError:
+            from services.user_service import get_user_billing_info
+        
+        billing_info = get_user_billing_info(user_id)
+        
         # Send support email using the authenticated user's email
-        send_support_email(user_email, question)
+        try:
+            send_support_email(user_id, user_email, question, billing_info)
+        except Exception as email_error:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"Error sending support email: {email_error}")
+            print(f"Traceback: {error_trace}")
+            # Return error to user so they know email failed
+            return jsonify({
+                'error': f'Failed to send email: {str(email_error)}. Please check your email configuration or try again later.'
+            }), 500
         
         return jsonify({
             'success': True,
@@ -1465,5 +1577,7 @@ def submit_support():
         
     except Exception as e:
         import traceback
+        print(f"Error in support route: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': str(e) + '\n' + traceback.format_exc()}), 500
 

@@ -31,12 +31,18 @@ def send_email(to_email, subject, html_body, text_body=None):
     config = get_smtp_config()
     
     if not config['user'] or not config['password']:
-        raise Exception("SMTP credentials not configured. Please set SMTP_USER and SMTP_PASSWORD environment variables.")
+        error_msg = "SMTP credentials not configured. Please set SMTP_USER and SMTP_PASSWORD environment variables."
+        print(f"[Email Service] ERROR: {error_msg}")
+        raise Exception(error_msg)
     
     if not config['from_email']:
-        raise Exception("SMTP_FROM_EMAIL not configured.")
+        error_msg = "SMTP_FROM_EMAIL not configured."
+        print(f"[Email Service] ERROR: {error_msg}")
+        raise Exception(error_msg)
     
     try:
+        print(f"[Email Service] Attempting to send email to {to_email} with subject: {subject}")
+        
         # Create message
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
@@ -52,14 +58,22 @@ def send_email(to_email, subject, html_body, text_body=None):
         msg.attach(part2)
         
         # Send email
+        print(f"[Email Service] Connecting to SMTP server {config['host']}:{config['port']}")
         with smtplib.SMTP(config['host'], config['port']) as server:
             server.starttls()
+            print(f"[Email Service] Logging in with user: {config['user']}")
             server.login(config['user'], config['password'])
+            print(f"[Email Service] Sending email...")
             server.send_message(msg)
+            print(f"[Email Service] Email sent successfully to {to_email}")
         
         return True
     except Exception as e:
-        raise Exception(f"Failed to send email: {e}")
+        error_msg = f"Failed to send email: {e}"
+        print(f"[Email Service] ERROR: {error_msg}")
+        import traceback
+        print(f"[Email Service] Traceback: {traceback.format_exc()}")
+        raise Exception(error_msg)
 
 
 def send_verification_email(email, token):
@@ -314,10 +328,53 @@ You can manage your notification preferences: {notifications_url}
     )
 
 
-def send_support_email(user_email, question):
-    """Send support request email to admin"""
+def send_support_email(user_id, user_email, question, billing_info=None):
+    """Send support request email to admin
+    
+    Args:
+        user_id: User ID
+        user_email: User's email address
+        question: Support question/message
+        billing_info: Optional billing information dict
+    """
     config = get_smtp_config()
     admin_email = os.environ.get('SUPPORT_EMAIL', config.get('from_email', 'rtk@rtk-cv.dk'))
+    
+    # Build user details section
+    user_details_html = f"""
+            <div style="background-color: #f0f4ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #667eea;">
+                <h3 style="color: #667eea; margin-top: 0;">User Information</h3>
+                <p style="margin: 5px 0;"><strong>Email:</strong> {user_email}</p>
+                <p style="margin: 5px 0;"><strong>User ID:</strong> {user_id}</p>
+    """
+    
+    user_details_text = f"""
+User Information:
+Email: {user_email}
+User ID: {user_id}
+"""
+    
+    if billing_info:
+        processed = billing_info.get('projects_processed_count', 0)
+        limit = billing_info.get('projects_processed_limit', 500)
+        remaining = billing_info.get('projects_remaining')
+        
+        limit_display = 'Unlimited' if (limit is None or limit >= 999999999) else str(limit)
+        remaining_display = 'Unlimited' if remaining is None else str(remaining)
+        
+        user_details_html += f"""
+                <p style="margin: 5px 0;"><strong>Projects Processed:</strong> {processed} / {limit_display}</p>
+                <p style="margin: 5px 0;"><strong>Projects Remaining:</strong> {remaining_display}</p>
+        """
+        
+        user_details_text += f"""
+Projects Processed: {processed} / {limit_display}
+Projects Remaining: {remaining_display}
+"""
+    
+    user_details_html += """
+            </div>
+    """
     
     # Create HTML email body
     html_body = f"""
@@ -330,7 +387,7 @@ def send_support_email(user_email, question):
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
             <h1 style="color: #667eea;">New Support Request</h1>
-            <p><strong>From:</strong> {user_email}</p>
+            {user_details_html}
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
             <h2 style="color: #333;">Question/Message:</h2>
             <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
@@ -347,7 +404,7 @@ def send_support_email(user_email, question):
     text_body = f"""
 New Support Request
 
-From: {user_email}
+{user_details_text}
 
 Question/Message:
 {question}
@@ -359,6 +416,110 @@ This is an automated support request from Respondent Pro.
     return send_email(
         to_email=admin_email,
         subject=f"Support Request from {user_email} - Respondent Pro",
+        html_body=html_body,
+        text_body=text_body
+    )
+
+
+def send_credits_low_email(user_email, projects_remaining, projects_limit):
+    """Send email notification when user has less than 10% credits remaining"""
+    config = get_smtp_config()
+    app_url = config.get('app_url', 'http://localhost:5000')
+    
+    # Load HTML template
+    template_path = TEMPLATES_DIR / 'credits_low.html'
+    if template_path.exists():
+        with open(template_path, 'r', encoding='utf-8') as f:
+            html_body = f.read().format(
+                projects_remaining=projects_remaining,
+                projects_limit=projects_limit,
+                support_url=f"{app_url}/support"
+            )
+    else:
+        # Fallback HTML if template doesn't exist
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Low Credits Warning - Respondent Pro</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #f59e0b;">Low Credits Warning</h1>
+                <p>You're running low on credits!</p>
+                <p><strong>Projects Remaining:</strong> {projects_remaining} / {projects_limit}</p>
+                <p>To continue using Respondent Pro, please <a href="{app_url}/support">contact support</a> to upgrade.</p>
+            </div>
+        </body>
+        </html>
+        """
+    
+    # Plain text version
+    text_body = f"""
+Low Credits Warning - Respondent Pro
+
+You're running low on credits!
+
+Projects Remaining: {projects_remaining} / {projects_limit}
+
+To continue using Respondent Pro, please contact support to upgrade.
+Visit: {app_url}/support
+"""
+    
+    return send_email(
+        to_email=user_email,
+        subject="Low Credits Warning - Respondent Pro",
+        html_body=html_body,
+        text_body=text_body
+    )
+
+
+def send_credits_exhausted_email(user_email, projects_limit):
+    """Send email notification when user has reached their credit limit"""
+    config = get_smtp_config()
+    app_url = config.get('app_url', 'http://localhost:5000')
+    
+    # Load HTML template
+    template_path = TEMPLATES_DIR / 'credits_exhausted.html'
+    if template_path.exists():
+        with open(template_path, 'r', encoding='utf-8') as f:
+            html_body = f.read().format(
+                projects_limit=projects_limit,
+                support_url=f"{app_url}/support"
+            )
+    else:
+        # Fallback HTML if template doesn't exist
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Credits Exhausted - Respondent Pro</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #ef4444;">Credits Exhausted</h1>
+                <p>You have reached your project processing limit of {projects_limit} projects.</p>
+                <p>To continue using Respondent Pro, please <a href="{app_url}/support">contact support</a> to upgrade.</p>
+            </div>
+        </body>
+        </html>
+        """
+    
+    # Plain text version
+    text_body = f"""
+Credits Exhausted - Respondent Pro
+
+You have reached your project processing limit of {projects_limit} projects.
+
+To continue using Respondent Pro, please contact support to upgrade.
+Visit: {app_url}/support
+"""
+    
+    return send_email(
+        to_email=user_email,
+        subject="Credits Exhausted - Respondent Pro",
         html_body=html_body,
         text_body=text_body
     )

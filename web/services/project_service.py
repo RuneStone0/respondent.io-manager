@@ -10,8 +10,10 @@ import requests
 # Import database collections
 try:
     from ..db import projects_cache_collection, hidden_projects_log_collection, project_details_collection, topics_collection, user_preferences_collection, ai_analysis_cache_collection
+    from ..services.user_service import check_user_has_credits, get_user_billing_info, check_and_send_credit_notifications
 except ImportError:
     from web.db import projects_cache_collection, hidden_projects_log_collection, project_details_collection, topics_collection, user_preferences_collection, ai_analysis_cache_collection
+    from services.user_service import check_user_has_credits, get_user_billing_info, check_and_send_credit_notifications
 
 # Import cache manager
 try:
@@ -508,6 +510,23 @@ def process_and_hide_projects(user_id, session, profile_id, filters, page_size=5
     """
     user_id_str = str(user_id)
     
+    # Check user credits before processing
+    try:
+        billing_info = get_user_billing_info(user_id)
+        limit = billing_info.get('projects_processed_limit', 500)
+        processed = billing_info.get('projects_processed_count', 0)
+        
+        # If limit is None or very large (effectively unlimited), skip check
+        if limit is not None and limit < 999999999:
+            if processed >= limit:
+                raise Exception(f"You have reached your project processing limit ({limit} projects). Please contact support to upgrade.")
+    except Exception as e:
+        # If it's our credit limit exception, re-raise it
+        if "reached your project processing limit" in str(e):
+            raise
+        # Otherwise, log and continue (don't block on billing info errors)
+        print(f"Warning: Could not check billing info: {e}")
+    
     # Initialize progress
     hide_progress[user_id_str] = {
         'status': 'in_progress',
@@ -597,6 +616,13 @@ def process_and_hide_projects(user_id, session, profile_id, filters, page_size=5
         
         # Update progress to completed
         hide_progress[user_id_str]['status'] = 'completed'
+        
+        # Check and send credit notifications after processing
+        try:
+            check_and_send_credit_notifications(user_id)
+        except Exception as e:
+            print(f"Error checking credit notifications: {e}")
+            # Don't fail the operation if notification check fails
         
         return {
             'total_processed': len(all_projects),

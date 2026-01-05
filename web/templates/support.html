@@ -123,6 +123,19 @@
 </div>
 
 <script>
+// Prefill form based on URL parameters
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const upgrade = urlParams.get('upgrade');
+    const questionTextarea = document.getElementById('question');
+    
+    if (upgrade === '500') {
+        questionTextarea.value = 'I would like to upgrade my account to get 500 more projects for $5.';
+    } else if (upgrade === 'lifetime') {
+        questionTextarea.value = 'I would like to upgrade my account to a lifetime plan (unlimited projects) for $50.';
+    }
+});
+
 document.getElementById('supportForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     

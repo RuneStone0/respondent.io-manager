@@ -8,17 +8,17 @@ from datetime import datetime
 
 # Import services
 try:
-    from ..services.user_service import load_user_config, load_user_filters, save_user_config, get_user_onboarding_status, is_user_verified, load_credentials_by_user_id
+    from ..services.user_service import load_user_config, load_user_filters, save_user_config, get_user_onboarding_status, is_user_verified, load_credentials_by_user_id, get_user_billing_info, is_admin, get_email_by_user_id, update_user_billing_limit
     from ..services.respondent_auth_service import create_respondent_session, verify_respondent_authentication
     from ..services.project_service import fetch_all_respondent_projects, get_hidden_count
     from ..cache_manager import get_cache_stats
-    from ..db import projects_cache_collection
+    from ..db import projects_cache_collection, users_collection
 except ImportError:
-    from services.user_service import load_user_config, load_user_filters, save_user_config, get_user_onboarding_status, is_user_verified, load_credentials_by_user_id
+    from services.user_service import load_user_config, load_user_filters, save_user_config, get_user_onboarding_status, is_user_verified, load_credentials_by_user_id, get_user_billing_info, is_admin, get_email_by_user_id, update_user_billing_limit
     from services.respondent_auth_service import create_respondent_session, verify_respondent_authentication
     from services.project_service import fetch_all_respondent_projects, get_hidden_count
     from cache_manager import get_cache_stats
-    from db import projects_cache_collection
+    from db import projects_cache_collection, users_collection
 
 bp = Blueprint('page', __name__)
 
@@ -144,7 +144,18 @@ def account():
         passkeys = []
         print(f"Error loading credentials: {e}")
     
-    return render_template('account.html', email=email, passkeys=passkeys)
+    # Get billing info
+    try:
+        billing_info = get_user_billing_info(user_id)
+    except Exception as e:
+        print(f"Error loading billing info: {e}")
+        billing_info = {
+            'projects_processed_limit': 500,
+            'projects_processed_count': 0,
+            'projects_remaining': 500
+        }
+    
+    return render_template('account.html', email=email, passkeys=passkeys, billing_info=billing_info)
 
 
 @bp.route('/notifications')
@@ -181,6 +192,60 @@ def support():
     user_id = session['user_id']
     email = session.get('email', 'User')
     return render_template('support.html', email=email)
+
+
+@bp.route('/admin')
+@require_verified
+def admin():
+    """Admin page - manage user billing limits"""
+    user_id = session['user_id']
+    email = session.get('email', 'User')
+    
+    # Check if user is admin
+    if not is_admin(user_id):
+        return redirect(url_for('page.account'))
+    
+    # Get all users with billing info
+    users_data = []
+    error_message = None
+    try:
+        if users_collection is None:
+            error_message = "MongoDB connection not available"
+        else:
+            all_users = users_collection.find({}, {'username': 1, 'projects_processed_limit': 1, '_id': 1})
+            user_count = 0
+            for user_doc in all_users:
+                user_count += 1
+                try:
+                    user_id_str = str(user_doc['_id'])
+                    billing_info = get_user_billing_info(user_id_str)
+                    users_data.append({
+                        'user_id': user_id_str,
+                        'email': user_doc.get('username', 'Unknown'),
+                        'billing_info': billing_info
+                    })
+                except Exception as e:
+                    print(f"Error getting billing info for user {user_doc.get('_id')}: {e}")
+                    # Still add user with default billing info
+                    users_data.append({
+                        'user_id': str(user_doc['_id']),
+                        'email': user_doc.get('username', 'Unknown'),
+                        'billing_info': {
+                            'projects_processed_limit': 500,
+                            'projects_processed_count': 0,
+                            'projects_remaining': 500
+                        }
+                    })
+            
+            if user_count == 0:
+                error_message = "No users found in database"
+    except Exception as e:
+        error_message = f"Error loading users: {str(e)}"
+        print(f"Error loading users for admin: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    return render_template('admin.html', users=users_data, email=email, error_message=error_message)
 
 
 @bp.route('/projects')

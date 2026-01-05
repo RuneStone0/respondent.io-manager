@@ -10,9 +10,9 @@ from datetime import datetime, timedelta
 
 # Import database collections
 try:
-    from ..db import users_collection, session_keys_collection, user_preferences_collection
+    from ..db import users_collection, session_keys_collection, user_preferences_collection, projects_cache_collection, hidden_projects_log_collection
 except ImportError:
-    from web.db import users_collection, session_keys_collection, user_preferences_collection
+    from web.db import users_collection, session_keys_collection, user_preferences_collection, projects_cache_collection, hidden_projects_log_collection
 
 
 def get_user_by_email(email):
@@ -181,6 +181,9 @@ def create_user(email):
             'verification_token': token,
             'verification_token_expires': expires_at,
             'credentials': [],  # Array for multiple passkeys
+            'projects_processed_limit': 500,  # Default limit for new users
+            'credits_low_email_sent': False,
+            'credits_exhausted_email_sent': False,
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         })
@@ -787,4 +790,273 @@ def verify_user_email(user_id, token):
         return True
     except Exception as e:
         raise Exception(f"Failed to verify email: {e}")
+
+
+# Admin user IDs - can be configured via ADMIN_USER_IDS environment variable (comma-separated)
+# or hardcoded as fallback
+def get_admin_user_ids():
+    """Get admin user IDs from environment variable or hardcoded list"""
+    import os
+    env_admin_ids = os.environ.get('ADMIN_USER_IDS', '')
+    if env_admin_ids:
+        # Parse comma-separated list from environment variable
+        admin_ids = [admin_id.strip() for admin_id in env_admin_ids.split(',') if admin_id.strip()]
+        if admin_ids:
+            return admin_ids
+    
+    # Fallback to hardcoded list if env var not set
+    ADMIN_USER_IDS = [
+        # Add admin user IDs here as strings (fallback if ADMIN_USER_IDS env var not set)
+        # Example: '507f1f77bcf86cd799439011'
+    ]
+    return ADMIN_USER_IDS
+
+
+def is_admin(user_id):
+    """Check if user_id is in the admin list (from env var or hardcoded)"""
+    if not user_id:
+        return False
+    admin_ids = get_admin_user_ids()
+    return str(user_id) in [str(admin_id) for admin_id in admin_ids]
+
+
+def get_projects_processed_count(user_id):
+    """Calculate total projects processed for user.
+    
+    Counts projects from hidden_projects_log_collection for the user.
+    This represents all projects that have been processed (hidden) by the user.
+    
+    Args:
+        user_id: User ID
+        
+    Returns:
+        Total count of projects processed
+    """
+    if hidden_projects_log_collection is None:
+        return 0
+    try:
+        # Count all projects in hidden_projects_log for this user
+        count = hidden_projects_log_collection.count_documents({'user_id': str(user_id)})
+        return count
+    except Exception as e:
+        print(f"Error getting projects processed count: {e}")
+        return 0
+
+
+def get_projects_remaining(user_id):
+    """Calculate remaining credits for user
+    
+    Args:
+        user_id: User ID
+        
+    Returns:
+        Number of projects remaining (limit - processed), or None if unlimited
+    """
+    try:
+        user_doc = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user_doc:
+            return None
+        
+        limit = user_doc.get('projects_processed_limit', 500)
+        # If limit is very large (effectively unlimited), return None
+        if limit is None or limit >= 999999999:
+            return None
+        
+        processed = get_projects_processed_count(user_id)
+        remaining = max(0, limit - processed)
+        return remaining
+    except Exception as e:
+        print(f"Error getting projects remaining: {e}")
+        return None
+
+
+def check_user_has_credits(user_id, projects_needed=1):
+    """Check if user can process N projects
+    
+    Args:
+        user_id: User ID
+        projects_needed: Number of projects needed (default: 1)
+        
+    Returns:
+        Tuple (has_credits: bool, remaining: int or None)
+    """
+    try:
+        user_doc = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user_doc:
+            return (False, 0)
+        
+        limit = user_doc.get('projects_processed_limit', 500)
+        # If limit is None or very large (effectively unlimited), always return True
+        if limit is None or limit >= 999999999:
+            return (True, None)
+        
+        processed = get_projects_processed_count(user_id)
+        remaining = limit - processed
+        
+        return (remaining >= projects_needed, max(0, remaining))
+    except Exception as e:
+        print(f"Error checking user credits: {e}")
+        return (False, 0)
+
+
+def get_user_billing_info(user_id):
+    """Get user billing information
+    
+    Args:
+        user_id: User ID
+        
+    Returns:
+        Dictionary with billing info:
+        - projects_processed_limit: Number of projects user can process
+        - projects_processed_count: Total projects processed (counted from hidden_projects_log)
+        - projects_remaining: Number of projects remaining
+    """
+    if users_collection is None:
+        return {
+            'projects_processed_limit': 500,
+            'projects_processed_count': 0,
+            'projects_remaining': 500
+        }
+    try:
+        user_doc = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user_doc:
+            return {
+                'projects_processed_limit': 500,
+                'projects_processed_count': 0,
+                'projects_remaining': 500
+            }
+        
+        limit = user_doc.get('projects_processed_limit', 500)
+        processed = get_projects_processed_count(user_id)
+        
+        # Calculate remaining (None if unlimited)
+        if limit is None or limit >= 999999999:
+            remaining = None
+        else:
+            remaining = max(0, limit - processed)
+        
+        return {
+            'projects_processed_limit': limit,
+            'projects_processed_count': processed,
+            'projects_remaining': remaining
+        }
+    except Exception as e:
+        print(f"Error getting user billing info: {e}")
+        return {
+            'projects_processed_limit': 500,
+            'projects_processed_count': 0,
+            'projects_remaining': 500
+        }
+
+
+def update_user_billing_limit(user_id, new_limit):
+    """Update user's projects_processed_limit (admin function)
+    
+    Args:
+        user_id: User ID
+        new_limit: New limit value (can be very large for lifetime users)
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    if users_collection is None:
+        raise Exception("MongoDB connection not available. Please ensure MongoDB is running.")
+    try:
+        # Validate limit
+        if new_limit is not None and (not isinstance(new_limit, int) or new_limit < 0):
+            raise ValueError("Invalid limit value. Must be a positive integer or None.")
+        
+        update_data = {
+            'projects_processed_limit': new_limit,
+            'updated_at': datetime.utcnow()
+        }
+        
+        # Reset notification flags when limit is updated so notifications can be sent again
+        update_data['credits_low_email_sent'] = False
+        update_data['credits_exhausted_email_sent'] = False
+        
+        users_collection.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': update_data}
+        )
+        return True
+    except Exception as e:
+        error_msg = str(e)
+        if "not allowed" in error_msg.lower() or "AtlasError" in error_msg:
+            raise Exception(
+                f"MongoDB permissions error: {error_msg}\n"
+                "For MongoDB Atlas, ensure your database user has 'readWrite' role on the database.\n"
+                "You can set this in Atlas: Database Access → Edit User → Database User Privileges → Add Built-in Role → readWrite"
+            )
+        raise Exception(f"Failed to update user billing limit: {e}")
+
+
+def check_and_send_credit_notifications(user_id):
+    """Check user's credit status and send email notifications if needed
+    
+    Args:
+        user_id: User ID
+        
+    Returns:
+        None (sends emails as side effect)
+    """
+    if users_collection is None:
+        return
+    
+    try:
+        user_doc = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user_doc:
+            return
+        
+        # Get billing info
+        billing_info = get_user_billing_info(user_id)
+        limit = billing_info.get('projects_processed_limit', 500)
+        processed = billing_info.get('projects_processed_count', 0)
+        remaining = billing_info.get('projects_remaining')
+        
+        # If limit is None or very large (effectively unlimited), skip notifications
+        if limit is None or limit >= 999999999:
+            return
+        
+        # Get user email
+        user_email = user_doc.get('username')  # Email is stored in username field
+        if not user_email:
+            return
+        
+        # Import email service here to avoid circular imports
+        try:
+            from ..services.email_service import send_credits_low_email, send_credits_exhausted_email
+        except ImportError:
+            from services.email_service import send_credits_low_email, send_credits_exhausted_email
+        
+        # Check if limit reached
+        if processed >= limit:
+            # Check if exhausted email already sent
+            if not user_doc.get('credits_exhausted_email_sent', False):
+                try:
+                    send_credits_exhausted_email(user_email, limit)
+                    # Mark as sent
+                    users_collection.update_one(
+                        {'_id': ObjectId(user_id)},
+                        {'$set': {'credits_exhausted_email_sent': True, 'updated_at': datetime.utcnow()}}
+                    )
+                except Exception as e:
+                    print(f"Error sending credits exhausted email: {e}")
+        
+        # Check if < 10% remaining
+        elif remaining is not None and remaining < limit * 0.1:
+            # Check if low credits email already sent
+            if not user_doc.get('credits_low_email_sent', False):
+                try:
+                    send_credits_low_email(user_email, remaining, limit)
+                    # Mark as sent
+                    users_collection.update_one(
+                        {'_id': ObjectId(user_id)},
+                        {'$set': {'credits_low_email_sent': True, 'updated_at': datetime.utcnow()}}
+                    )
+                except Exception as e:
+                    print(f"Error sending credits low email: {e}")
+    
+    except Exception as e:
+        print(f"Error checking credit notifications: {e}")
 
