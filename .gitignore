@@ -42,3 +42,6 @@ certs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Other
+TODO.md
