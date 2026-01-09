@@ -785,7 +785,8 @@ input[type="text"][name="authorization"] {
 
 .project-list {
     display: grid;
-    gap: 16px;
+    grid-template-columns: 1fr;
+    gap: 24px;
     margin-bottom: 32px;
 }
 
@@ -795,11 +796,16 @@ input[type="text"][name="authorization"] {
     border-radius: 12px;
     padding: 20px;
     transition: all 0.3s ease;
+    margin-bottom: 24px;
 }
 
 .project-card:hover {
     box-shadow: 0 4px 12px var(--shadow);
     transform: translateY(-2px);
+}
+
+.project-card:last-child {
+    margin-bottom: 0;
 }
 
 .project-header {
@@ -928,7 +934,7 @@ input[type="text"][name="authorization"] {
 
 @keyframes spin {
     to {
-        transform: rotate(360deg);
+    transform: rotate(360deg);
     }
 }
 
@@ -1014,7 +1020,7 @@ input[type="text"][name="authorization"] {
     border-radius: 12px;
     padding: 0;
     margin-bottom: 24px;
-    box-shadow: 0 4px 12px var(--shadow);
+box-shadow: 0 4px 12px var(--shadow);
     transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -1064,7 +1070,7 @@ input[type="text"][name="authorization"] {
     border-radius: 8px;
     padding: 20px;
     margin-bottom: 24px;
-    border: 2px solid var(--border-color);
+border: 2px solid var(--border-color);
 }
 
 .mode-selector-header {
