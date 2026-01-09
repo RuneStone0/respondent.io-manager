@@ -3,8 +3,9 @@
 Notification service for managing user notification preferences and sending notifications
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 # Import database collections
 try:
@@ -57,7 +58,7 @@ def load_notification_preferences(user_id: str, auto_create: bool = True) -> Dic
         return get_default_notification_preferences()
     
     try:
-        query = user_notifications_collection.where('user_id', '==', str(user_id)).limit(1).stream()
+        query = user_notifications_collection.where(filter=FieldFilter('user_id', '==', str(user_id))).limit(1).stream()
         docs = list(query)
         if docs:
             prefs_doc = docs[0].to_dict()
@@ -118,13 +119,13 @@ def save_notification_preferences(user_id: str, preferences: Dict[str, Any]) -> 
         }
         
         # Find existing document or create new one
-        query = user_notifications_collection.where('user_id', '==', str(user_id)).limit(1).stream()
+        query = user_notifications_collection.where(filter=FieldFilter('user_id', '==', str(user_id))).limit(1).stream()
         docs = list(query)
         
         update_data = {
             'user_id': str(user_id),
             'notifications': notifications,
-            'updated_at': datetime.utcnow()
+            'updated_at': datetime.now(timezone.utc)
         }
         
         if docs:
@@ -132,7 +133,7 @@ def save_notification_preferences(user_id: str, preferences: Dict[str, Any]) -> 
             docs[0].reference.update(update_data)
         else:
             # Create new document
-            update_data['created_at'] = datetime.utcnow()
+            update_data['created_at'] = datetime.now(timezone.utc)
             user_notifications_collection.add(update_data)
         
         return True
@@ -266,7 +267,7 @@ def should_send_weekly_notification(user_id: str) -> bool:
         # Check if today matches the selected day of week
         # weekday() returns Monday=0, Sunday=6
         # Our day_of_week uses Sunday=0, Monday=1, ..., Saturday=6
-        today_weekday = datetime.utcnow().weekday()  # Monday=0, Sunday=6
+        today_weekday = datetime.now(timezone.utc).weekday()  # Monday=0, Sunday=6
         selected_day = weekly_prefs.get('day_of_week', 0)
         
         # Convert selected_day (Sunday=0) to weekday format (Monday=0, Sunday=6)
@@ -292,7 +293,12 @@ def should_send_weekly_notification(user_id: str) -> bool:
             
             if last_sent and isinstance(last_sent, datetime):
                 # Check if last_sent was within the last 7 days
-                days_since_sent = (datetime.utcnow() - last_sent).days
+                # Ensure both datetimes are timezone-aware
+                now = datetime.now(timezone.utc)
+                if last_sent.tzinfo is None:
+                    # If last_sent is naive, assume it's UTC
+                    last_sent = last_sent.replace(tzinfo=timezone.utc)
+                days_since_sent = (now - last_sent).days
                 if days_since_sent < 7:
                     return False
         
@@ -314,7 +320,7 @@ def mark_weekly_notification_sent(user_id: str) -> bool:
     """
     try:
         prefs = load_notification_preferences(user_id)
-        prefs['weekly_project_summary']['last_sent'] = datetime.utcnow()
+        prefs['weekly_project_summary']['last_sent'] = datetime.now(timezone.utc)
         return save_notification_preferences(user_id, prefs)
     except Exception as e:
         print(f"Error marking weekly notification as sent: {e}")
@@ -353,7 +359,12 @@ def should_send_token_expiration_notification(user_id: str) -> bool:
                     last_sent = None
             
             if last_sent and isinstance(last_sent, datetime):
-                hours_since_sent = (datetime.utcnow() - last_sent).total_seconds() / 3600
+                # Ensure both datetimes are timezone-aware
+                now = datetime.now(timezone.utc)
+                if last_sent.tzinfo is None:
+                    # If last_sent is naive, assume it's UTC
+                    last_sent = last_sent.replace(tzinfo=timezone.utc)
+                hours_since_sent = (now - last_sent).total_seconds() / 3600
                 if hours_since_sent < 24:
                     # Already sent within 24 hours, don't send again
                     return False
@@ -376,7 +387,7 @@ def mark_token_expiration_notification_sent(user_id: str) -> bool:
     """
     try:
         prefs = load_notification_preferences(user_id)
-        prefs['session_token_expired']['last_sent'] = datetime.utcnow()
+        prefs['session_token_expired']['last_sent'] = datetime.now(timezone.utc)
         return save_notification_preferences(user_id, prefs)
     except Exception as e:
         print(f"Error marking token expiration notification as sent: {e}")

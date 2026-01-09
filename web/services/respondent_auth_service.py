@@ -6,6 +6,7 @@ Respondent.io authentication and session management service
 import time
 import requests
 from datetime import datetime
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 # Import database collections
 try:
@@ -329,7 +330,7 @@ def get_user_profile(mongo_user_id):
         return None
     
     try:
-        query = user_profiles_collection.where('user_id', '==', str(mongo_user_id)).limit(1).stream()
+        query = user_profiles_collection.where(filter=FieldFilter('user_id', '==', str(mongo_user_id))).limit(1).stream()
         docs = list(query)
         if docs:
             profile_doc = docs[0].to_dict()
@@ -383,7 +384,7 @@ def fetch_and_store_user_profile(mongo_user_id, respondent_user_id=None):
         
         if profile_data:
             # Store profile in user_profiles collection
-            query = user_profiles_collection.where('user_id', '==', str(mongo_user_id)).limit(1).stream()
+            query = user_profiles_collection.where(filter=FieldFilter('user_id', '==', str(mongo_user_id))).limit(1).stream()
             docs = list(query)
             
             profile_data_to_store = {

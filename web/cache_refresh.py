@@ -7,6 +7,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 from typing import Optional
+from google.cloud.firestore_v1.base_query import FieldFilter
 from .cache_manager import is_cache_fresh, refresh_project_cache
 from .ai_analyzer import analyze_projects_batch
 
@@ -80,7 +81,7 @@ def refresh_stale_caches(max_age_hours: int = 24):
             if not is_cache_fresh(projects_cache_collection, str(user_id), max_age_hours):
                 try:
                     # Get user's session keys
-                    query = session_keys_collection.where('user_id', '==', str(user_id)).limit(1).stream()
+                    query = session_keys_collection.where(filter=FieldFilter('user_id', '==', str(user_id))).limit(1).stream()
                     docs = list(query)
                     if not docs:
                         print(f"[Background Refresh] No session keys found for user {user_id}, skipping")
@@ -141,6 +142,77 @@ def refresh_stale_caches(max_age_hours: int = 24):
                 
     except Exception as e:
         print(f"[Background Refresh] Error in refresh_stale_caches: {e}")
+        import traceback
+        print(traceback.format_exc())
+
+
+def keep_sessions_alive():
+    """
+    Keep all user sessions alive by making periodic API requests to Respondent.io
+    This prevents session cookies from expiring due to inactivity.
+    
+    Uses verify_respondent_authentication() to check if each user's session is still valid.
+    """
+    try:
+        # Import collections from db module
+        try:
+            from .db import session_keys_collection
+        except ImportError:
+            from db import session_keys_collection
+        
+        if session_keys_collection is None:
+            print("[Session Keep-Alive] session_keys_collection not available, skipping")
+            return
+        
+        # Import auth service
+        try:
+            from .services.respondent_auth_service import verify_respondent_authentication
+        except ImportError:
+            from services.respondent_auth_service import verify_respondent_authentication
+        
+        # Get all users with session keys
+        all_sessions = session_keys_collection.stream()
+        
+        kept_alive_count = 0
+        expired_count = 0
+        error_count = 0
+        skipped_count = 0
+        
+        for session_doc in all_sessions:
+            session_data = session_doc.to_dict()
+            user_id = session_data.get('user_id')
+            cookies = session_data.get('cookies', {})
+            
+            if not user_id or not cookies.get('respondent.session.sid'):
+                skipped_count += 1
+                continue
+            
+            try:
+                # Use verify_respondent_authentication to check if session is alive
+                # This makes a request to /v2/respondents/me which validates the session
+                print(f"[Session Keep-Alive] Checking session for user {user_id}...")
+                verification = verify_respondent_authentication(cookies)
+                
+                if verification.get('success'):
+                    kept_alive_count += 1
+                    print(f"[Session Keep-Alive] ✓ Session alive for user {user_id}")
+                else:
+                    expired_count += 1
+                    print(f"[Session Keep-Alive] ✗ Session expired for user {user_id}: {verification.get('message', 'Unknown error')}")
+                    
+            except Exception as e:
+                error_count += 1
+                print(f"[Session Keep-Alive] Error for user {user_id}: {e}")
+                import traceback
+                print(traceback.format_exc())
+        
+        # Print summary
+        total = kept_alive_count + expired_count + error_count + skipped_count
+        if total > 0:
+            print(f"[Session Keep-Alive] Completed: {kept_alive_count} kept alive, {expired_count} expired, {error_count} errors, {skipped_count} skipped (total: {total})")
+                
+    except Exception as e:
+        print(f"[Session Keep-Alive] Error in keep_sessions_alive: {e}")
         import traceback
         print(traceback.format_exc())
 

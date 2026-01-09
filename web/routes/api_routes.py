@@ -1487,20 +1487,17 @@ def get_history():
         manual_methods = ['manual', 'feedback_based', 'applied']
         automated_methods = ['auto', 'ai_auto', 'auto_similar', 'category']
         
-        # Count by method
-        pipeline = [
-            {'$match': {'user_id': user_id}},
-            {
-                '$group': {
-                    '_id': '$hidden_method',
-                    'count': {'$sum': 1}
-                }
-            }
-        ]
-        
+        # Count by method using Firestore query (Firestore doesn't support aggregation pipelines)
         method_counts = {}
-        for doc in hidden_projects_log_collection.aggregate(pipeline):
-            method_counts[doc['_id']] = doc['count']
+        try:
+            query = hidden_projects_log_collection.where(filter=FieldFilter('user_id', '==', user_id)).stream()
+            for doc in query:
+                doc_data = doc.to_dict()
+                method = doc_data.get('hidden_method', 'unknown')
+                method_counts[method] = method_counts.get(method, 0) + 1
+        except Exception as e:
+            print(f"Error counting by method: {e}")
+            method_counts = {}
         
         # Calculate manual and automated counts
         manual_count = sum(method_counts.get(method, 0) for method in manual_methods)

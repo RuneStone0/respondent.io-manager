@@ -6,6 +6,7 @@ Firestore implementation
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 
 def extract_topics_from_project(project: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -61,7 +62,7 @@ def store_unique_topics(collection, topics: List[Dict[str, Any]]) -> bool:
                 continue
             
             # Find existing topic by topic_id
-            query = collection.where('topic_id', '==', str(topic_id)).limit(1).stream()
+            query = collection.where(filter=FieldFilter('topic_id', '==', str(topic_id))).limit(1).stream()
             docs = list(query)
             
             topic_data = {

@@ -1,6 +1,6 @@
 """
 Cloud Function for scheduled notifications
-Triggered by Cloud Scheduler
+Automatically scheduled by Firebase (runs every Friday morning at 9:00 AM)
 """
 
 import os
@@ -11,13 +11,16 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from functions_framework import http
+from firebase_functions import scheduler_fn
 from web.notification_scheduler import check_and_send_weekly_notifications, check_and_send_token_expiration_notifications
 
 
-@http
-def scheduled_notifications(request):
-    """Cloud Function triggered by Cloud Scheduler for notifications"""
+@scheduler_fn.on_schedule(schedule="every friday 09:00", timezone="America/New_York")
+def scheduled_notifications(event: scheduler_fn.ScheduledEvent) -> None:
+    """
+    Check and send weekly project summary notifications and token expiration notifications.
+    Runs every Friday morning at 9:00 AM to check for users who need notifications.
+    """
     try:
         # Check weekly notifications
         check_and_send_weekly_notifications()
@@ -25,6 +28,9 @@ def scheduled_notifications(request):
         # Check token expiration notifications
         check_and_send_token_expiration_notifications()
         
-        return {'status': 'success', 'message': 'Notifications checked'}, 200
+        print("[Notifications] Scheduled task completed successfully")
     except Exception as e:
-        return {'status': 'error', 'message': str(e)}, 500
+        print(f"[Notifications] Error in scheduled task: {e}")
+        import traceback
+        print(traceback.format_exc())
+        raise

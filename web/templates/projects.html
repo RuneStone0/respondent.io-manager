@@ -6,19 +6,13 @@
 {% block extra_css %}
 <style>
     .toast-container {
-        @apply fixed bottom-24 right-5 z-[10001] flex flex-col gap-3;
+        @apply fixed inset-0 flex items-end px-4 pb-[100px] pt-6 pointer-events-none sm:p-6 sm:pb-[100px] sm:items-start z-[10002];
+    }
+    .toast-wrapper {
+        @apply w-full flex flex-col items-center space-y-4 sm:items-end;
     }
     .toast {
-        @apply min-w-[300px] max-w-[400px] p-4 bg-base-100 border border-base-300 rounded-lg shadow-lg flex items-center gap-3 relative;
-    }
-    .toast.success {
-        @apply border-l-4 border-l-success;
-    }
-    .toast.error {
-        @apply border-l-4 border-l-error;
-    }
-    .toast.info {
-        @apply border-l-4 border-l-primary;
+        @apply max-w-sm w-full bg-base-100 shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden;
     }
     .toast.hiding {
         @apply animate-out slide-out-to-right;
@@ -361,7 +355,9 @@
 
 
 <!-- Toast Notification Container -->
-<div class="toast-container" id="toastContainer"></div>
+<div aria-live="assertive" class="toast-container">
+    <div class="toast-wrapper" id="toastContainer"></div>
+</div>
 
 <!-- Analytics Section -->
 <div class="analytics-section" id="analyticsSection" style="display: none; margin-top: 24px; padding: 20px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
@@ -382,28 +378,51 @@
 {% block extra_js %}
 <script>
     
-    // Toast Notification System
+    // Toast Notification System (Tailwind UI Simple pattern)
     function showToast(message, type = 'info', duration = 5000) {
         const container = document.getElementById('toastContainer');
         if (!container) return;
         
         const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
+        toast.className = 'toast';
         
-        const iconSvg = type === 'success' 
-            ? '<svg class="toast-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>'
-            : type === 'error'
-            ? '<svg class="toast-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>'
-            : '';
+        // Icon based on type
+        let iconSvg = '';
+        let iconColor = '';
+        if (type === 'success') {
+            iconColor = 'text-success';
+            iconSvg = '<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+        } else if (type === 'error') {
+            iconColor = 'text-error';
+            iconSvg = '<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+        } else {
+            iconColor = 'text-primary';
+            iconSvg = '<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+        }
         
         toast.innerHTML = `
-            ${iconSvg}
-            <div class="toast-content">${message}</div>
-            <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Close">
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                </svg>
-            </button>
+            <div class="p-4">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <div class="${iconColor}">
+                            ${iconSvg}
+                        </div>
+                    </div>
+                    <div class="ml-3 w-0 flex-1 pt-0.5">
+                        <p class="text-sm font-medium text-base-content">
+                            ${message}
+                        </p>
+                    </div>
+                    <div class="ml-4 flex-shrink-0 flex">
+                        <button type="button" onclick="this.closest('.toast').remove()" class="bg-base-100 rounded-md inline-flex text-base-content/50 hover:text-base-content focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                            <span class="sr-only">Close</span>
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
         `;
         
         container.appendChild(toast);

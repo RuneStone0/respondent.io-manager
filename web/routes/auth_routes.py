@@ -21,6 +21,7 @@ from webauthn.helpers.structs import (
     AuthenticationCredential,
 )
 from types import SimpleNamespace
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 # Try to import PublicKeyCredentialDescriptor and PublicKeyCredentialType
 try:
@@ -615,7 +616,7 @@ def verify_email_token(token):
                 from db import users_collection
             
             if users_collection:
-                query = users_collection.where('verification_token', '==', token).limit(1).stream()
+                query = users_collection.where(filter=FieldFilter('verification_token', '==', token)).limit(1).stream()
                 docs = list(query)
                 if docs:
                     user_doc = docs[0]
@@ -938,7 +939,7 @@ def verify_login_email_token(token):
         if users_collection is None:
             return redirect(url_for('auth.login'))
         
-        query = users_collection.where('login_token', '==', token).limit(1).stream()
+        query = users_collection.where(filter=FieldFilter('login_token', '==', token)).limit(1).stream()
         docs = list(query)
         if not docs:
             return render_template('login.html', error='Invalid or expired login link')

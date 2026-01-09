@@ -8,6 +8,7 @@ import base64
 import secrets
 from datetime import datetime, timedelta
 from google.cloud.firestore import DELETE_FIELD
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 # Import database collections
 try:
@@ -22,7 +23,7 @@ def get_user_by_email(email):
         raise Exception("Firestore connection not available. Please ensure Firestore is configured.")
     try:
         # Email is stored in the username field for backward compatibility
-        query = users_collection.where('username', '==', email).limit(1).stream()
+        query = users_collection.where(filter=FieldFilter('username', '==', email)).limit(1).stream()
         docs = list(query)
         if docs:
             return docs[0].id  # Return document ID as string
@@ -444,7 +445,7 @@ def load_user_config(user_id):
     if session_keys_collection is None:
         return None
     try:
-        query = session_keys_collection.where('user_id', '==', str(user_id)).limit(1).stream()
+        query = session_keys_collection.where(filter=FieldFilter('user_id', '==', str(user_id))).limit(1).stream()
         docs = list(query)
         if docs:
             config_doc = docs[0].to_dict()
@@ -463,7 +464,7 @@ def update_last_synced(user_id):
     if session_keys_collection is None:
         return
     try:
-        query = session_keys_collection.where('user_id', '==', str(user_id)).limit(1).stream()
+        query = session_keys_collection.where(filter=FieldFilter('user_id', '==', str(user_id))).limit(1).stream()
         docs = list(query)
         if docs:
             docs[0].reference.update({
@@ -487,7 +488,7 @@ def save_user_config(user_id, config, profile_id=None):
             update_data['profile_id'] = profile_id
         
         # Find existing document or create new one
-        query = session_keys_collection.where('user_id', '==', str(user_id)).limit(1).stream()
+        query = session_keys_collection.where(filter=FieldFilter('user_id', '==', str(user_id))).limit(1).stream()
         docs = list(query)
         if docs:
             docs[0].reference.update(update_data)
@@ -509,7 +510,7 @@ def load_user_filters(user_id):
             'hide_using_ai': False
         }
     try:
-        query = user_preferences_collection.where('user_id', '==', str(user_id)).limit(1).stream()
+        query = user_preferences_collection.where(filter=FieldFilter('user_id', '==', str(user_id))).limit(1).stream()
         docs = list(query)
         if docs:
             prefs_doc = docs[0].to_dict()
@@ -653,7 +654,7 @@ def save_user_filters(user_id, filters):
         }
         
         # Find existing document or create new one
-        query = user_preferences_collection.where('user_id', '==', str(user_id)).limit(1).stream()
+        query = user_preferences_collection.where(filter=FieldFilter('user_id', '==', str(user_id))).limit(1).stream()
         docs = list(query)
         if docs:
             docs[0].reference.update(update_data)
@@ -794,7 +795,7 @@ def get_projects_processed_count(user_id):
         return 0
     try:
         # Count all projects in hidden_projects_log for this user
-        query = hidden_projects_log_collection.where('user_id', '==', str(user_id)).stream()
+        query = hidden_projects_log_collection.where(filter=FieldFilter('user_id', '==', str(user_id))).stream()
         count = sum(1 for _ in query)
         return count
     except Exception as e:

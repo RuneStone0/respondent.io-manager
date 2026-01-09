@@ -254,7 +254,7 @@ def update_user_preferences(
         Updated preferences dictionary
     """
     try:
-        query = user_preferences_collection.where('user_id', '==', str(user_id)).limit(1).stream()
+        query = user_preferences_collection.where(filter=FieldFilter('user_id', '==', str(user_id))).limit(1).stream()
         docs = list(query)
         if not docs:
             return {}
@@ -291,7 +291,7 @@ def get_user_preferences(
         Preferences dictionary
     """
     try:
-        query = user_preferences_collection.where('user_id', '==', str(user_id)).limit(1).stream()
+        query = user_preferences_collection.where(filter=FieldFilter('user_id', '==', str(user_id))).limit(1).stream()
         docs = list(query)
         if not docs:
             return {
