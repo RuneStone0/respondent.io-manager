@@ -1,0 +1,42 @@
+# Cursor Rule: MVP Tech Stack Standardizer
+
+**Rule Name:** MVP Tech Stack Standardizer
+
+**Applies to:** All code generation, refactoring, suggestions, and completions in this project
+
+**Instruction / Rule Content:**
+
+When generating, editing, or suggesting code for this MVP project, you **must** strictly follow these standards:
+
+1. **Language & Structure**  
+   - Use **Python** exclusively for backend, logic, scripts, and Cloud Functions.  
+   - Organize code using **classes** to maximize reusability and maintainability.  
+   - Avoid loose functions/procedural code when a class-based approach makes sense (e.g. `UserService`, `OrderProcessor`, `NotificationManager`, etc.).
+
+2. **Backend & Infrastructure – Firebase-first philosophy**  
+   - Build **everything** toward native Firebase tooling whenever possible.  
+   - Use **Firebase Cloud Functions** (2nd gen preferred) for serverless logic.  
+   - For scheduled/cron jobs → use **firebase_functions.scheduler_fn** (`@scheduler_fn.on_schedule`) — **never** Cloud Scheduler.  
+   - **Never** use Cloud Run, App Engine, or other non-Firebase compute options.  
+   - Authentication → Firebase Authentication  
+   - Database → Firestore (preferred) or Realtime Database  
+   - File storage → Firebase Storage  
+   - Hosting → Firebase Hosting (for static/SPA content)  
+   - If no direct Firebase equivalent exists for a feature, prefer wrapping the functionality inside a Firebase Function rather than introducing external services.
+
+3. **Frontend & Styling**  
+   - Use **Tailwind CSS** exclusively for styling.  
+   - Stick to **standard Tailwind utility classes** as much as possible.  
+   - Avoid heavy custom CSS, @apply abuse, or complex component libraries that fight Tailwind.  
+   - Prefer composition of Tailwind classes over deeply nested custom components unless reusability truly demands it.  
+   - Good base component references: shadcn/ui style (but only the concept — implement with plain Tailwind), Flowbite, DaisyUI (if used, keep very light).
+
+4. **General Best Practices for this project**  
+   - Favor simplicity and speed-to-MVP over premature optimization.  
+   - Write clean, readable, self-documenting class/method names.  
+   - Use type hints (especially in Python 3.10+).  
+   - Keep Firebase security rules and Firestore data modeling clean and strict.  
+   - When in doubt: choose the more Firebase-native solution even if it's slightly less elegant.
+
+**Short version to remember:**  
+Python + Classes + Firebase-native (Functions 2nd gen + Scheduler) + pure Tailwind CSS
