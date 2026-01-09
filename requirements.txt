@@ -1,3 +1,7 @@
+# Requirements for local development and Cloud Functions
+# Note: gunicorn is only needed for local development (used by run.sh for HTTPS support)
+# Cloud Functions uses functions-framework which handles WSGI
+
 functions-framework>=3.0.0
 firebase-functions>=0.5.0
 requests>=2.31.0
@@ -10,4 +14,3 @@ gunicorn>=21.2.0
 selenium>=4.15.0
 undetected-chromedriver>=3.5.0
 setuptools>=65.0.0
-google-cloud-scheduler>=2.0.0

@@ -47,6 +47,7 @@ Thumbs.db
 
 # Logs
 firebase-debug.log
+functions/firebase-debug.log
 *.log
 
 # Other

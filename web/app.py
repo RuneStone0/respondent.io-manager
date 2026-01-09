@@ -384,34 +384,8 @@ except ImportError:
     app.register_blueprint(page_bp)
     app.register_blueprint(api_bp)
 
-# Initialize notification scheduler if Firestore is available
-if firestore_available and db is not None:
-    try:
-        from .notification_scheduler import start_notification_scheduler
-        notification_thread = start_notification_scheduler(db, check_interval_hours=1, token_check_interval_hours=12)
-        print("[Notifications] Notification scheduler started (weekly: 1h, token expiration: 12h)")
-    except ImportError:
-        try:
-            from notification_scheduler import start_notification_scheduler
-            notification_thread = start_notification_scheduler(db, check_interval_hours=1, token_check_interval_hours=12)
-            print("[Notifications] Notification scheduler started (weekly: 1h, token expiration: 12h)")
-        except Exception as e:
-            print(f"[Notifications] Failed to start notification scheduler: {e}")
-    except Exception as e:
-        print(f"[Notifications] Failed to start notification scheduler: {e}")
-
-# Initialize background cache refresh if Firestore is available
-if firestore_available and db is not None:
-    try:
-        from .cache_refresh import start_background_refresh
-        cache_refresh_thread = start_background_refresh(db, check_interval_hours=1, cache_max_age_hours=24)
-        print("[Cache Refresh] Background cache refresh started (check interval: 1h, max age: 24h)")
-    except ImportError:
-        try:
-            from cache_refresh import start_background_refresh
-            cache_refresh_thread = start_background_refresh(db, check_interval_hours=1, cache_max_age_hours=24)
-            print("[Cache Refresh] Background cache refresh started (check interval: 1h, max age: 24h)")
-        except Exception as e:
-            print(f"[Cache Refresh] Failed to start background cache refresh: {e}")
-    except Exception as e:
-        print(f"[Cache Refresh] Failed to start background cache refresh: {e}")
+# Background threads disabled - Cloud Scheduler handles these tasks via scheduled functions:
+# - scheduled_notifications (runs every Friday at 9:00 AM)
+# - scheduled_cache_refresh (runs daily at 6:00 AM)
+# - scheduled_session_keepalive (runs every 8 hours)
+# These are configured in functions/scheduled_*.py files and managed by Firebase Function Scheduler

@@ -96,7 +96,6 @@ except Exception as e:
 # For Cloud Functions 2nd Gen, create an HTTP function wrapper for the Flask app
 # Functions-framework expects a callable function, not a Flask app object
 from functions_framework import http
-from flask import Response
 
 @http
 def respondentpro(request):
