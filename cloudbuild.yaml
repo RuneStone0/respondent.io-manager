@@ -1,47 +1,33 @@
 steps:
-  # Install Firebase CLI
-  - name: 'node:22'
-    entrypoint: 'npm'
-    args: ['install', '-g', 'firebase-tools']
-
   # Deploy Firestore rules and indexes
-  - name: 'node:22'
-    entrypoint: 'firebase'
+  - name: 'us-docker.pkg.dev/firebase-cli/us/firebase'
     args:
       - 'deploy'
-      #- '--only'
-      #- 'firestore:rules,firestore:indexes'
-      #- '--project'
-      #- 'respondentpro-xyz'
-      #- '--non-interactive'
-    env:
-      - 'FIREBASE_TOKEN=${_FIREBASE_TOKEN}'
+      - '--only'
+      - 'firestore:rules,firestore:indexes'
+      - '--project=respondentpro-xyz'
+      - '--non-interactive'
+      - '--token=${_FIREBASE_TOKEN}'
 
   # Deploy Cloud Functions
-  - name: 'node:22'
-    entrypoint: 'firebase'
+  - name: 'us-docker.pkg.dev/firebase-cli/us/firebase'
     args:
       - 'deploy'
       - '--only'
       - 'functions'
-      - '--project'
-      - 'respondentpro-xyz'
+      - '--project=respondentpro-xyz'
       - '--non-interactive'
-    env:
-      - 'FIREBASE_TOKEN=${_FIREBASE_TOKEN}'
+      - '--token=${_FIREBASE_TOKEN}'
 
   # Deploy Hosting
-  - name: 'node:22'
-    entrypoint: 'firebase'
+  - name: 'us-docker.pkg.dev/firebase-cli/us/firebase'
     args:
       - 'deploy'
       - '--only'
       - 'hosting'
-      - '--project'
-      - 'respondentpro-xyz'
+      - '--project=respondentpro-xyz'
       - '--non-interactive'
-    env:
-      - 'FIREBASE_TOKEN=${_FIREBASE_TOKEN}'
+      - '--token=${_FIREBASE_TOKEN}'
 
 # Substitution variables
 # _FIREBASE_TOKEN should be set as a substitution variable in Cloud Build
