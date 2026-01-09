@@ -151,7 +151,9 @@ def keep_sessions_alive():
     Keep all user sessions alive by making periodic API requests to Respondent.io
     This prevents session cookies from expiring due to inactivity.
     
-    Uses verify_respondent_authentication() to check if each user's session is still valid.
+    Uses create_respondent_session() to create authenticated sessions and makes requests
+    to /v2/respondents/me to verify and keep sessions alive, matching the authentication
+    pattern used throughout the app.
     """
     try:
         # Import collections from db module
@@ -163,12 +165,6 @@ def keep_sessions_alive():
         if session_keys_collection is None:
             print("[Session Keep-Alive] session_keys_collection not available, skipping")
             return
-        
-        # Import auth service
-        try:
-            from .services.respondent_auth_service import verify_respondent_authentication
-        except ImportError:
-            from services.respondent_auth_service import verify_respondent_authentication
         
         # Get all users with session keys
         all_sessions = session_keys_collection.stream()
@@ -188,17 +184,30 @@ def keep_sessions_alive():
                 continue
             
             try:
-                # Use verify_respondent_authentication to check if session is alive
-                # This makes a request to /v2/respondents/me which validates the session
+                # Create authenticated session using the same method as the rest of the app
+                # This ensures we're using the exact same authentication pattern
                 print(f"[Session Keep-Alive] Checking session for user {user_id}...")
-                verification = verify_respondent_authentication(cookies)
+                req_session = create_respondent_session(cookies=cookies)
                 
-                if verification.get('success'):
+                # Make verification request to keep session alive
+                auth_url = "https://app.respondent.io/v2/respondents/me"
+                start_time = time.time()
+                print(f"[Respondent.io API] GET {auth_url} (verify_authentication)")
+                response = req_session.get(auth_url, timeout=30)
+                elapsed_time = time.time() - start_time
+                print(f"[Respondent.io API] Response: {response.status_code} ({elapsed_time:.2f}s)")
+                
+                if response.status_code == 200:
                     kept_alive_count += 1
                     print(f"[Session Keep-Alive] ✓ Session alive for user {user_id}")
                 else:
                     expired_count += 1
-                    print(f"[Session Keep-Alive] ✗ Session expired for user {user_id}: {verification.get('message', 'Unknown error')}")
+                    error_msg = f"Authentication failed: {response.status_code}"
+                    if response.status_code == 401:
+                        error_msg = "Authentication failed: Unauthorized (401)"
+                    elif response.status_code == 403:
+                        error_msg = "Authentication failed: Forbidden (403)"
+                    print(f"[Session Keep-Alive] ✗ Session expired for user {user_id}: {error_msg}")
                     
             except Exception as e:
                 error_count += 1
