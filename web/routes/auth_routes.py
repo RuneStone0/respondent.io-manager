@@ -684,7 +684,7 @@ def list_passkeys():
         if not credentials:
             return jsonify({'passkeys': []})
         
-        # Convert to list if single credential (backward compatibility)
+        # Ensure credentials is a list
         if not isinstance(credentials, list):
             credentials = [credentials]
         

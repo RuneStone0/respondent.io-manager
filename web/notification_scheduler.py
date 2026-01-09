@@ -26,12 +26,11 @@ except ImportError:
     from services.user_service import get_email_by_user_id
 
 
-def start_notification_scheduler(db, check_interval_hours: int = 1, token_check_interval_hours: int = 12):
+def start_notification_scheduler(check_interval_hours: int = 1, token_check_interval_hours: int = 12):
     """
     Start background thread to send notifications
     
     Args:
-        db: Firestore database object (unused, kept for compatibility)
         check_interval_hours: How often to check for weekly notifications (default: 1 hour)
         token_check_interval_hours: How often to check for token expiration (default: 12 hours)
     """

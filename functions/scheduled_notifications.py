@@ -3,9 +3,25 @@ Cloud Function for scheduled notifications
 Automatically scheduled by Firebase (runs every Friday morning at 9:00 AM)
 """
 
-# Initialize Firebase Admin
-from firebase_admin import initialize_app
-initialize_app()
+import os
+import sys
+import firebase_admin
+from pathlib import Path
+
+# Add parent directory to path
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Initialize Firebase Admin (if not already initialized)
+try:
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app()
+except ValueError:
+    # Already initialized - this is OK
+    pass
+except ImportError:
+    # firebase_admin not available
+    pass
 
 from firebase_functions import scheduler_fn
 from web.notification_scheduler import check_and_send_weekly_notifications, check_and_send_token_expiration_notifications

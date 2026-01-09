@@ -61,15 +61,26 @@ try:
         # Use centralized initialization function
         try:
             from .firebase_init import initialize_firebase_admin
+            # initialize_firebase_admin() checks if already initialized internally
             initialize_firebase_admin(project_id=FIREBASE_PROJECT_ID, project_root=PROJECT_ROOT)
         except ImportError:
             # Fallback if firebase_init not available (shouldn't happen, but be safe)
             try:
                 from firebase_init import initialize_firebase_admin
+                # initialize_firebase_admin() checks if already initialized internally
                 initialize_firebase_admin(project_id=FIREBASE_PROJECT_ID, project_root=PROJECT_ROOT)
             except ImportError:
                 logger.warning("Could not import firebase_init, using basic initialization")
-                firebase_admin.initialize_app()
+                # Check again before initializing (might have been initialized by another import)
+                if not firebase_admin._apps:
+                    try:
+                        firebase_admin.initialize_app()
+                    except ValueError as e:
+                        # Already initialized - this is OK (might have been initialized between check and call)
+                        if "already exists" in str(e).lower() or "already initialized" in str(e).lower():
+                            logger.info("Firebase Admin already initialized (caught during db.py fallback initialization)")
+                        else:
+                            raise
     
     # Get Firestore client (whether we just initialized or it was already initialized)
     # CRITICAL: Ensure GOOGLE_APPLICATION_CREDENTIALS is unset in cloud before calling firestore.client()
@@ -206,6 +217,3 @@ except Exception as e:
     ai_analysis_cache_collection = None
     user_notifications_collection = None
     firestore_available = False
-
-# For backward compatibility, keep mongo_available as alias
-mongo_available = firestore_available

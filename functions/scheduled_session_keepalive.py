@@ -3,9 +3,14 @@ Cloud Function for scheduled session keep-alive
 Automatically scheduled by Firebase (runs every 8 hours)
 """
 
-# Initialize Firebase Admin
-from firebase_admin import initialize_app
-initialize_app()
+# Initialize Firebase Admin (if not already initialized)
+import firebase_admin
+try:
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app()
+except ValueError:
+    # Already initialized - this is OK
+    pass
 
 from firebase_functions import scheduler_fn
 from web.cache_refresh import keep_sessions_alive

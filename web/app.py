@@ -27,8 +27,6 @@ try:
         hide_feedback_collection, category_recommendations_collection,
         user_profiles_collection, firestore_available, db
     )
-    # For backward compatibility
-    mongo_available = firestore_available
 except ImportError:
     from db import (
         users_collection, session_keys_collection, projects_cache_collection,
@@ -36,21 +34,19 @@ except ImportError:
         hide_feedback_collection, category_recommendations_collection,
         user_profiles_collection, firestore_available, db
     )
-    # For backward compatibility
-    mongo_available = firestore_available
 
 # Import user service
 try:
     from .services.user_service import (
-        get_user_by_username, get_username_by_user_id, user_exists, create_user,
-        load_credentials_by_user_id, save_credentials_by_user_id,
+        create_user,
+        load_credentials_by_user_id,
         load_user_config, save_user_config, update_last_synced,
         load_user_filters, save_user_filters
     )
 except ImportError:
     from services.user_service import (
-        get_user_by_username, get_username_by_user_id, user_exists, create_user,
-        load_credentials_by_user_id, save_credentials_by_user_id,
+        create_user,
+        load_credentials_by_user_id,
         load_user_config, save_user_config, update_last_synced,
         load_user_filters, save_user_filters
     )

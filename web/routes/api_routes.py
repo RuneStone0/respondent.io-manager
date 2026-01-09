@@ -892,34 +892,17 @@ def get_hide_feedback():
         feedback_list = prefs.get('hide_feedback', [])
         
         # Add IDs to old entries that don't have them and prepare response data
-        needs_update = False
-        import uuid
         import copy
         
         response_feedback = []
         for feedback in feedback_list:
             feedback_copy = copy.deepcopy(feedback)
             
-            # Ensure id exists (for backward compatibility with old entries)
-            if 'id' not in feedback:
-                feedback['id'] = str(uuid.uuid4())
-                feedback_copy['id'] = feedback['id']
-                needs_update = True
-            else:
-                feedback_copy['id'] = feedback['id']
-            
             # Convert datetime objects to ISO format strings for JSON serialization
             if 'hidden_at' in feedback_copy and isinstance(feedback_copy['hidden_at'], datetime):
                 feedback_copy['hidden_at'] = feedback_copy['hidden_at'].isoformat() + 'Z'
             
             response_feedback.append(feedback_copy)
-        
-        # Update the document if we added IDs to old entries
-        if needs_update:
-            docs[0].reference.update({
-                'hide_feedback': feedback_list,
-                'updated_at': datetime.utcnow()
-            })
         
         return jsonify({
             'success': True,
@@ -960,7 +943,6 @@ def update_hide_feedback(feedback_id):
         feedback_found = False
         
         for feedback in feedback_list:
-            # Check by id if available, otherwise by project_id + hidden_at for backward compatibility
             if feedback.get('id') == feedback_id:
                 feedback['feedback_text'] = new_feedback_text
                 feedback_found = True

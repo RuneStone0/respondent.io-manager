@@ -21,7 +21,6 @@ except ImportError:
 
 
 def start_background_refresh(
-    db,
     check_interval_hours: int = 1,
     cache_max_age_hours: int = 24
 ):
@@ -29,7 +28,6 @@ def start_background_refresh(
     Start background thread to refresh caches
     
     Args:
-        db: Firestore database object (unused, kept for compatibility)
         check_interval_hours: How often to check for stale caches (default: 1 hour)
         cache_max_age_hours: Maximum age of cache before refresh (default: 24 hours)
     """

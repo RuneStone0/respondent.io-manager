@@ -22,7 +22,7 @@ def get_user_by_email(email):
     if users_collection is None:
         raise Exception("Firestore connection not available. Please ensure Firestore is configured.")
     try:
-        # Email is stored in the username field for backward compatibility
+        # Email is stored in the username field
         query = users_collection.where(filter=FieldFilter('username', '==', email)).limit(1).stream()
         docs = list(query)
         if docs:
@@ -31,11 +31,6 @@ def get_user_by_email(email):
     except Exception as e:
         error_msg = str(e)
         raise Exception(f"Failed to get user from Firestore: {e}")
-
-
-def get_user_by_username(username):
-    """Legacy function - use get_user_by_email instead. Kept for backward compatibility."""
-    return get_user_by_email(username)
 
 
 def get_email_by_user_id(user_id):
@@ -51,19 +46,9 @@ def get_email_by_user_id(user_id):
         raise Exception(f"Failed to get email from Firestore: {e}")
 
 
-def get_username_by_user_id(user_id):
-    """Legacy function - use get_email_by_user_id instead. Kept for backward compatibility."""
-    return get_email_by_user_id(user_id)
-
-
 def user_exists_by_email(email):
     """Check if user exists by email"""
     return get_user_by_email(email) is not None
-
-
-def user_exists(username):
-    """Legacy function - use user_exists_by_email instead. Kept for backward compatibility."""
-    return user_exists_by_email(username)
 
 
 def generate_verification_token(user_id):
@@ -155,7 +140,7 @@ def create_user(email):
         token = secrets.token_urlsafe(32)
         expires_at = datetime.utcnow() + timedelta(days=7)
         
-        # Create new user - email is stored in username field for backward compatibility
+        # Create new user - email is stored in username field
         user_data = {
             'username': email,  # Email stored in username field
             'email_verified': False,
@@ -183,7 +168,7 @@ def load_credentials_by_user_id(user_id, rp_id=None):
     Args:
         user_id: User ID
         rp_id: Optional relying party ID to filter credentials. If None, returns all credentials.
-               If specified and no matching credential found, returns None for backward compatibility.
+               If specified and no matching credential found, returns None.
     
     Returns:
         If rp_id is None: List of all credentials
@@ -198,7 +183,7 @@ def load_credentials_by_user_id(user_id, rp_id=None):
         
         user_data = user_doc.to_dict()
         
-        # Check for new credentials array format
+        # Check for credentials array format
         if 'credentials' in user_data and isinstance(user_data['credentials'], list):
             credentials_list = []
             for cred_doc in user_data['credentials']:
@@ -245,42 +230,6 @@ def load_credentials_by_user_id(user_id, rp_id=None):
             
             return credentials_list
         
-        # Backward compatibility: check for old single credential format
-        if 'credential' in user_data:
-            cred_doc = user_data['credential']
-            cred = {
-                'credential_id': None,
-                'public_key': None,
-                'counter': cred_doc.get('counter', 0),
-                'rp_id': 'localhost'  # Default for old credentials
-            }
-            
-            if 'credential_id' in cred_doc and cred_doc['credential_id']:
-                cred_id = cred_doc['credential_id']
-                if isinstance(cred_id, str):
-                    padding = 4 - (len(cred_id) % 4)
-                    if padding != 4:
-                        cred_id += '=' * padding
-                    cred['credential_id'] = base64.urlsafe_b64decode(cred_id)
-                else:
-                    cred['credential_id'] = cred_id
-            
-            if 'public_key' in cred_doc and cred_doc['public_key']:
-                pub_key = cred_doc['public_key']
-                if isinstance(pub_key, str):
-                    padding = 4 - (len(pub_key) % 4)
-                    if padding != 4:
-                        pub_key += '=' * padding
-                    cred['public_key'] = base64.urlsafe_b64decode(pub_key)
-                else:
-                    cred['public_key'] = pub_key
-            
-            # If rp_id filter specified, check if it matches
-            if rp_id is not None and cred.get('rp_id') != rp_id:
-                return None
-            
-            return cred if rp_id is None else (cred if cred.get('rp_id') == rp_id else None)
-        
         return None
     except Exception as e:
         raise Exception(f"Failed to load credentials from Firestore: {e}")
@@ -323,19 +272,6 @@ def add_credential_to_user(user_id, cred, rp_id=None):
             raise Exception(f"User {user_id} not found")
         
         user_data = user_doc.to_dict()
-        
-        # If user has old single credential format, migrate it
-        if 'credential' in user_data and 'credentials' not in user_data:
-            old_cred = user_data['credential']
-            old_cred['rp_id'] = 'localhost'  # Default for migrated credentials
-            old_cred['created_at'] = user_data.get('created_at', datetime.utcnow())
-            users_collection.document(str(user_id)).update({
-                'credentials': [old_cred],
-                'credential': DELETE_FIELD
-            })
-            # Reload user data
-            user_doc = users_collection.document(str(user_id)).get()
-            user_data = user_doc.to_dict()
         
         # Add new credential to array (avoid duplicates by checking credential_id)
         credential_id_str = credential_doc['credential_id']
@@ -432,14 +368,6 @@ def delete_credential_from_user(user_id, credential_id):
         raise Exception(f"Failed to delete credential from Firestore: {e}")
 
 
-# Backward compatibility function
-def save_credentials_by_user_id(user_id, cred):
-    """Legacy function - use add_credential_to_user instead. Kept for backward compatibility."""
-    # Try to determine rp_id from cred or default to localhost
-    rp_id = cred.get('rp_id', 'localhost')
-    return add_credential_to_user(user_id, cred, rp_id)
-
-
 def load_user_config(user_id):
     """Load user's Respondent.io config from Firestore by user_id"""
     if session_keys_collection is None:
@@ -516,25 +444,8 @@ def load_user_filters(user_id):
             prefs_doc = docs[0].to_dict()
             if 'filters' in prefs_doc:
                 filters = prefs_doc['filters']
-                # Backward compatibility: if old format exists, convert to new format
                 auto_hide = filters.get('auto_hide', False)
-                if not auto_hide:
-                    # Check old format for backward compatibility
-                    auto_hide = (
-                        filters.get('min_incentive_auto', False) or
-                        filters.get('min_hourly_rate_auto', False) or
-                        filters.get('hide_remote_auto', False)
-                    )
-                
-                # Handle isRemote: check for new format first, then backward compatibility
                 is_remote = filters.get('isRemote')
-                if is_remote is None:
-                    # Backward compatibility: if old hide_remote exists, convert to isRemote
-                    old_hide_remote = filters.get('hide_remote', False)
-                    if isinstance(old_hide_remote, str):
-                        old_hide_remote = old_hide_remote.lower() in ('true', '1', 'yes', 'on')
-                    if old_hide_remote:
-                        is_remote = True
                 
                 # Ensure isRemote is either None or True (never False)
                 if is_remote is not None and is_remote is not True:
@@ -596,14 +507,6 @@ def save_user_filters(user_id, filters):
         
         # Get auto-hide mode setting (default to False if not provided)
         auto_hide = filters.get('auto_hide', False)
-        
-        # Backward compatibility: check old format if auto_hide not provided
-        if not auto_hide:
-            auto_hide = (
-                filters.get('min_incentive_auto', False) or
-                filters.get('min_hourly_rate_auto', False) or
-                filters.get('hide_remote_auto', False)
-            )
         
         # Convert to boolean if needed
         if isinstance(auto_hide, str):

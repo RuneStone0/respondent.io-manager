@@ -146,11 +146,11 @@ function hideMessage() {
  * Uses prefers-color-scheme media query to respect system settings
  */
 function loadTheme() {
-    // Check if user has a saved preference (for backwards compatibility)
+    // Check if user has a saved preference
     const savedTheme = localStorage.getItem('theme');
     
     if (savedTheme) {
-        // If there's a saved theme, use it (but we'll respect browser preference going forward)
+        // If there's a saved theme, use it
         document.documentElement.setAttribute('data-theme', savedTheme);
         // Clear the saved theme so browser preference takes over next time
         localStorage.removeItem('theme');

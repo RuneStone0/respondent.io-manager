@@ -68,13 +68,6 @@ def dashboard():
     return redirect(url_for('page.account'))
 
 
-@bp.route('/onboarding')
-@require_verified
-def onboarding():
-    """Onboarding page - redirect to account page for backward compatibility"""
-    return redirect(url_for('page.account'))
-
-
 @bp.route('/account')
 @require_verified
 def account():

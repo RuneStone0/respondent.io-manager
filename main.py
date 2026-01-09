@@ -60,7 +60,6 @@ if not project_id:
         logger.warning("No project ID found. Using default credentials (project ID will be auto-detected)")
 
 if project_id:
-    os.environ['PROJECT_ID'] = project_id  # Set for backward compatibility
     logger.info(f"Using project ID: {project_id}")
 else:
     logger.info("No project ID set - will use default credentials with auto-detected project")
@@ -82,16 +81,24 @@ except ImportError as e:
 except Exception as e:
     logger.warning(f"Firebase Admin initialization error: {e}", exc_info=True)
 
-# Import the Flask app
-try:
-    from web.app import app
-    # Verify the app is properly initialized
-    if app is None:
-        raise ValueError("Flask app is None")
-    logger.info(f"Flask app loaded successfully: {app}")
-except Exception as e:
-    logger.error(f"Error importing Flask app: {e}", exc_info=True)
-    raise
+# Lazy import Flask app to avoid blocking during function discovery
+# The app will only be imported when the function is actually called
+_app = None
+
+def get_app():
+    """Lazy loader for Flask app to avoid blocking during function discovery"""
+    global _app
+    if _app is None:
+        try:
+            from web.app import app as flask_app
+            if flask_app is None:
+                raise ValueError("Flask app is None")
+            _app = flask_app
+            logger.info(f"Flask app loaded successfully: {_app}")
+        except Exception as e:
+            logger.error(f"Error importing Flask app: {e}", exc_info=True)
+            raise
+    return _app
 
 # For Cloud Functions 2nd Gen, create an HTTP function wrapper for the Flask app
 # Functions-framework expects a callable function, not a Flask app object
@@ -103,6 +110,9 @@ def respondentpro(request):
     HTTP function wrapper for Flask app
     Converts the Cloud Functions request to Flask's WSGI interface
     """
+    # Lazy load the app only when the function is called
+    app = get_app()
+    
     # Use Flask's test request context to handle the request
     with app.test_request_context(
         path=request.path,

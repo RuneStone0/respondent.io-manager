@@ -76,17 +76,54 @@ def initialize_firebase_admin(project_id=None, project_root=None):
                     f"Firebase Admin initialized with Application Default Credentials "
                     f"(Cloud environment, Project: {project_id or 'auto-detected'})"
                 )
-            except Exception as e:
-                # Fallback to default initialization
+            except ValueError as e:
+                # Check if already initialized
+                if "already exists" in str(e).lower() or "already initialized" in str(e).lower():
+                    logger.info("Firebase Admin already initialized (caught in ApplicationDefault path)")
+                    return True
+                # Not an "already exists" error, try fallback
                 logger.warning(f"ApplicationDefault failed ({e}), trying default initialization...")
+                # Check if initialized between the check and now
+                if firebase_admin._apps:
+                    logger.info("Firebase Admin already initialized (checked before fallback)")
+                    return True
                 init_options = {}
                 if project_id:
                     init_options['projectId'] = project_id
-                firebase_admin.initialize_app(**init_options)
-                logger.info(
-                    f"Firebase Admin initialized with default credentials "
-                    f"(fallback, Project: {project_id or 'auto-detected'})"
-                )
+                try:
+                    firebase_admin.initialize_app(**init_options)
+                    logger.info(
+                        f"Firebase Admin initialized with default credentials "
+                        f"(fallback, Project: {project_id or 'auto-detected'})"
+                    )
+                except ValueError as fallback_e:
+                    # Check if already initialized in fallback
+                    if "already exists" in str(fallback_e).lower() or "already initialized" in str(fallback_e).lower():
+                        logger.info("Firebase Admin already initialized (caught in fallback)")
+                        return True
+                    raise
+            except Exception as e:
+                # Other exceptions - try fallback
+                logger.warning(f"ApplicationDefault failed ({e}), trying default initialization...")
+                # Check if initialized between the check and now
+                if firebase_admin._apps:
+                    logger.info("Firebase Admin already initialized (checked before fallback)")
+                    return True
+                init_options = {}
+                if project_id:
+                    init_options['projectId'] = project_id
+                try:
+                    firebase_admin.initialize_app(**init_options)
+                    logger.info(
+                        f"Firebase Admin initialized with default credentials "
+                        f"(fallback, Project: {project_id or 'auto-detected'})"
+                    )
+                except ValueError as fallback_e:
+                    # Check if already initialized in fallback
+                    if "already exists" in str(fallback_e).lower() or "already initialized" in str(fallback_e).lower():
+                        logger.info("Firebase Admin already initialized (caught in fallback)")
+                        return True
+                    raise
             # Don't restore GOOGLE_APPLICATION_CREDENTIALS in cloud - we want to use default credentials
             return True
         
@@ -101,9 +138,15 @@ def initialize_firebase_admin(project_id=None, project_root=None):
                 init_options = {}
                 if project_id:
                     init_options['projectId'] = project_id
-                firebase_admin.initialize_app(cred, init_options)
-                logger.info(f"Firebase Admin initialized with service account: {cred_path}")
-                return True
+                try:
+                    firebase_admin.initialize_app(cred, init_options)
+                    logger.info(f"Firebase Admin initialized with service account: {cred_path}")
+                    return True
+                except ValueError as e:
+                    if "already exists" in str(e).lower() or "already initialized" in str(e).lower():
+                        logger.info("Firebase Admin already initialized (caught in service account path)")
+                        return True
+                    raise
             else:
                 # File doesn't exist - try default credentials
                 logger.warning(
@@ -111,9 +154,15 @@ def initialize_firebase_admin(project_id=None, project_root=None):
                     f"trying default credentials..."
                 )
                 if project_id:
-                    firebase_admin.initialize_app({'projectId': project_id})
-                    logger.info(f"Firebase Admin initialized with default credentials (Project: {project_id})")
-                    return True
+                    try:
+                        firebase_admin.initialize_app({'projectId': project_id})
+                        logger.info(f"Firebase Admin initialized with default credentials (Project: {project_id})")
+                        return True
+                    except ValueError as e:
+                        if "already exists" in str(e).lower() or "already initialized" in str(e).lower():
+                            logger.info("Firebase Admin already initialized (caught in service account fallback)")
+                            return True
+                        raise
                 else:
                     raise FileNotFoundError(
                         f"Service account credentials file not found: {cred_path} "
@@ -122,9 +171,15 @@ def initialize_firebase_admin(project_id=None, project_root=None):
         
         # No GOOGLE_APPLICATION_CREDENTIALS set - use default credentials
         elif project_id:
-            firebase_admin.initialize_app({'projectId': project_id})
-            logger.info(f"Firebase Admin initialized with default credentials (Project: {project_id})")
-            return True
+            try:
+                firebase_admin.initialize_app({'projectId': project_id})
+                logger.info(f"Firebase Admin initialized with default credentials (Project: {project_id})")
+                return True
+            except ValueError as e:
+                if "already exists" in str(e).lower() or "already initialized" in str(e).lower():
+                    logger.info("Firebase Admin already initialized (caught in project_id path)")
+                    return True
+                raise
         
         # Last resort - try default initialization
         else:
@@ -133,7 +188,7 @@ def initialize_firebase_admin(project_id=None, project_root=None):
                 logger.info("Firebase Admin initialized with default credentials (no project ID specified)")
                 return True
             except ValueError as e:
-                if "already exists" in str(e).lower():
+                if "already exists" in str(e).lower() or "already initialized" in str(e).lower():
                     logger.info("Firebase Admin already initialized")
                     return True
                 else:

@@ -3,9 +3,14 @@ Cloud Function for scheduled cache refresh
 Automatically scheduled by Firebase (runs daily at 6:00 AM)
 """
 
-# Initialize Firebase Admin
-from firebase_admin import initialize_app
-initialize_app()
+# Initialize Firebase Admin (if not already initialized)
+import firebase_admin
+try:
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app()
+except ValueError:
+    # Already initialized - this is OK
+    pass
 
 from firebase_functions import scheduler_fn
 from web.cache_refresh import refresh_stale_caches
