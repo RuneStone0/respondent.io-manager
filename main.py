@@ -116,25 +116,36 @@ def respondentpro(request):
     # Convert headers to dict (functions-framework provides them as a case-insensitive dict-like object)
     headers = dict(request.headers)
     
-    # Extract Cookie header - check both cases
-    cookie_header = headers.get('Cookie') or headers.get('cookie', '')
+    # Extract Cookie header - Firebase Hosting only forwards __session cookie to Cloud Functions
+    # Try to get Cookie header from headers
+    cookie_header = None
     
-    # If cookies are available as an attribute, reconstruct the header
+    # Try all case variations
+    for key in headers.keys():
+        if key.lower() == 'cookie':
+            cookie_header = headers[key]
+            break
+    
+    # If not in headers dict, try request.headers directly
+    if not cookie_header:
+        try:
+            cookie_header = request.headers.get('Cookie') or request.headers.get('cookie')
+        except:
+            pass
+    
+    # If still not found, check if functions-framework provides cookies as attribute
     if not cookie_header and hasattr(request, 'cookies') and request.cookies:
         cookie_parts = [f"{name}={value}" for name, value in request.cookies.items()]
         if cookie_parts:
             cookie_header = '; '.join(cookie_parts)
     
-    # Ensure Cookie header is in headers dict (Flask needs this to parse cookies)
-    if cookie_header:
-        headers['Cookie'] = cookie_header
-    
-    # Flask's test_request_context parses cookies from the Cookie header in headers
-    # We can also manually parse and set in environ_base as a fallback
+    # Flask's test_request_context needs cookies in environ_base as HTTP_COOKIE
     environ_base = {}
     if cookie_header:
-        # Set in environ_base as HTTP_COOKIE (WSGI standard)
         environ_base['HTTP_COOKIE'] = cookie_header
+        logger.debug(f"Cookie header found, setting HTTP_COOKIE: {cookie_header[:100]}...")
+    else:
+        logger.debug("No cookie header in request")
     
     # Flask's test_request_context should parse cookies from the Cookie header
     # But if it doesn't, we need to ensure they're in the WSGI environ
@@ -149,10 +160,17 @@ def respondentpro(request):
         query_string=request.query_string.decode('utf-8') if request.query_string else '',
         environ_base=environ_base
     ):
-        # Debug: Check if cookies were parsed
+        # Debug: Verify cookies were parsed by Flask
         if cookie_header:
-            logger.debug(f"Cookie header: {cookie_header[:200]}...")
-            logger.debug(f"Parsed cookies: {list(request.cookies.keys())}")
+            logger.debug(f"Cookie header was: {cookie_header[:200]}...")
+            logger.debug(f"Flask parsed cookies keys: {list(request.cookies.keys())}")
+            if 'firebase_id_token' in request.cookies:
+                logger.debug("✓ firebase_id_token cookie successfully parsed!")
+            else:
+                logger.warning(f"✗ firebase_id_token NOT in cookies. Available: {list(request.cookies.keys())}")
+                logger.warning(f"Request environ HTTP_COOKIE: {request.environ.get('HTTP_COOKIE', 'NOT SET')[:200]}")
+        else:
+            logger.warning("No cookie header was extracted from request")
         
         # Process the request through Flask
         response = app.full_dispatch_request()

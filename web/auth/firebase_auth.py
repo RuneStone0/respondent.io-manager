@@ -12,12 +12,12 @@ from firebase_admin import auth
 logger = logging.getLogger(__name__)
 
 
-def verify_firebase_token(id_token):
+def verify_firebase_token(token):
     """
-    Verify a Firebase Auth ID token and return decoded token.
+    Verify a Firebase Auth token (ID token or session cookie) and return decoded token.
     
     Args:
-        id_token: The Firebase Auth ID token string
+        token: The Firebase Auth ID token or session cookie string
         
     Returns:
         dict: Decoded token containing uid, email, and other claims
@@ -30,33 +30,43 @@ def verify_firebase_token(id_token):
         raise Exception("Firebase Admin not initialized. Cannot verify tokens.")
     
     try:
-        decoded_token = auth.verify_id_token(id_token)
-        return decoded_token
-    except auth.InvalidIdTokenError as e:
-        logger.warning(f"Invalid ID token: {e}")
-        return None
-    except auth.ExpiredIdTokenError as e:
-        logger.warning(f"Expired ID token: {e}")
-        return None
+        # Try to verify as session cookie first (longer, more secure)
+        # Add clock skew tolerance (60 seconds) to handle time differences between client and server
+        try:
+            decoded_token = auth.verify_session_cookie(token, clock_skew_seconds=60)
+            return decoded_token
+        except (auth.InvalidSessionCookieError, ValueError):
+            # Not a session cookie, try as ID token
+            try:
+                decoded_token = auth.verify_id_token(token, clock_skew_seconds=60)
+                return decoded_token
+            except (auth.InvalidIdTokenError, auth.ExpiredIdTokenError) as e:
+                logger.warning(f"Invalid or expired ID token: {e}")
+                return None
     except Exception as e:
-        logger.error(f"Error verifying ID token: {e}")
+        logger.error(f"Error verifying token: {e}")
         return None
 
 
 def get_id_token_from_request():
     """
-    Extract Firebase Auth ID token from request.
-    Checks Authorization header and cookies.
+    Extract Firebase Auth token from request.
+    Checks Authorization header, session cookie, and ID token cookie.
     
     Returns:
-        str: ID token if found, None otherwise
+        str: Token (ID token or session cookie) if found, None otherwise
     """
     # Check Authorization header (Bearer token)
     auth_header = request.headers.get('Authorization', '')
     if auth_header.startswith('Bearer '):
         return auth_header[7:]  # Remove 'Bearer ' prefix
     
-    # Check cookie (for browser-based requests)
+    # Check __session cookie first (Firebase Hosting only forwards this)
+    session_cookie = request.cookies.get('__session')
+    if session_cookie:
+        return session_cookie
+    
+    # Fallback: Check firebase_id_token cookie (for local development)
     id_token = request.cookies.get('firebase_id_token')
     if id_token:
         return id_token

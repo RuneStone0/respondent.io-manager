@@ -171,17 +171,91 @@ def firebase_signup():
 
 @bp.route('/api/auth/signin', methods=['POST'])
 def firebase_signin():
-    """Firebase Auth signin endpoint (handled by frontend, this is for reference)"""
-    return jsonify({'error': 'Signin is handled by Firebase Auth client SDK on the frontend'}), 400
+    """Create session cookie from ID token - required for Firebase Hosting"""
+    from flask import request, jsonify, make_response
+    from ..auth.firebase_auth import verify_firebase_token
+    import firebase_admin
+    from firebase_admin import auth
+    from datetime import timedelta
+    
+    data = request.json
+    id_token = data.get('idToken') if data else None
+    
+    if not id_token:
+        return jsonify({'error': 'ID token is required'}), 400
+    
+    try:
+        # Verify the ID token first (with clock skew tolerance)
+        # Note: create_session_cookie also verifies the token, but we verify first for better error handling
+        decoded_token = verify_firebase_token(id_token)
+        if not decoded_token:
+            return jsonify({'error': 'Invalid ID token'}), 401
+        
+        # Create session cookie (expires in 5 days)
+        # create_session_cookie will verify the token again, but it should pass now
+        expires_in = timedelta(days=5)
+        try:
+            session_cookie = auth.create_session_cookie(id_token, expires_in=expires_in)
+        except Exception as e:
+            # If create_session_cookie fails due to clock skew, try with a small delay
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error creating session cookie (may be clock skew): {e}")
+            # Retry after a brief moment - sometimes the token needs a moment to be "valid"
+            import time
+            time.sleep(0.1)
+            session_cookie = auth.create_session_cookie(id_token, expires_in=expires_in)
+        
+        # Create response with session cookie
+        response = make_response(jsonify({'success': True}))
+        
+        # Set __session cookie (Firebase Hosting only forwards this cookie)
+        # Must be Secure, HttpOnly, and SameSite=None for cross-site
+        response.set_cookie(
+            '__session',
+            session_cookie,
+            max_age=int(expires_in.total_seconds()),
+            secure=True,
+            httponly=True,
+            samesite='None',
+            path='/'
+        )
+        
+        return response
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error creating session cookie: {e}")
+        return jsonify({'error': 'Failed to create session cookie'}), 500
 
 
 @bp.route('/api/auth/logout', methods=['POST'])
 @require_auth
 def firebase_logout():
-    """Firebase Auth logout endpoint"""
-    # Logout is handled by frontend Firebase Auth SDK
-    # This endpoint can be used for any server-side cleanup if needed
-    return jsonify({'success': True, 'message': 'Logged out successfully'})
+    """Firebase Auth logout endpoint - clears session cookie"""
+    from flask import make_response, jsonify
+    from ..auth.firebase_auth import verify_firebase_token
+    import firebase_admin
+    from firebase_admin import auth
+    
+    # Get session cookie from request
+    session_cookie = request.cookies.get('__session')
+    
+    # Revoke refresh tokens if we have a valid session cookie
+    if session_cookie:
+        try:
+            decoded_token = auth.verify_session_cookie(session_cookie)
+            auth.revoke_refresh_tokens(decoded_token['uid'])
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error revoking tokens: {e}")
+    
+    # Clear session cookie
+    response = make_response(jsonify({'success': True, 'message': 'Logged out successfully'}))
+    response.set_cookie('__session', '', max_age=0, secure=True, httponly=True, samesite='None', path='/')
+    
+    return response
 
 
 # All WebAuthn routes removed - Firebase Auth handles authentication

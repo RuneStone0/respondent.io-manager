@@ -57,18 +57,41 @@ function initFirebaseAuth(config) {
         auth.onIdTokenChanged(async (user) => {
             currentUser = user;
             if (user) {
-                // Token changed (including automatic refresh) - update cookie
-                await setIdTokenCookie(user);
+                // Token changed (including automatic refresh) - create/update session cookie
+                try {
+                    const idToken = await user.getIdToken();
+                    // Call backend to create/update session cookie
+                    await fetch('/api/auth/signin', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ idToken: idToken }),
+                        credentials: 'include'
+                    });
+                } catch (error) {
+                    console.error('Error updating session cookie:', error);
+                }
             } else {
-                // User signed out - clear cookie
+                // User signed out - clear cookies
                 clearIdTokenCookie();
             }
         });
         
-        // Set initial cookie if user is already signed in
+        // Set initial session cookie if user is already signed in
         if (auth.currentUser) {
             currentUser = auth.currentUser;
-            setIdTokenCookie(auth.currentUser);
+            // Create session cookie for existing user
+            auth.currentUser.getIdToken().then(async (idToken) => {
+                try {
+                    await fetch('/api/auth/signin', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ idToken: idToken }),
+                        credentials: 'include'
+                    });
+                } catch (error) {
+                    console.error('Error creating initial session cookie:', error);
+                }
+            });
         }
         
         return true;
@@ -94,13 +117,26 @@ async function signUpWithEmail(email, password) {
         // Firebase automatically signs the user in
         currentUser = userCredential.user;
         
-        // Explicitly set cookie immediately (don't wait for onIdTokenChanged)
-        await setIdTokenCookie(userCredential.user);
+        // Get ID token and create session cookie (Firebase Hosting only forwards __session cookie)
+        const idToken = await userCredential.user.getIdToken();
+        
+        // Call backend to create session cookie
+        const response = await fetch('/api/auth/signin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken: idToken }),
+            credentials: 'include' // Important: include cookies in request
+        });
+        
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: 'Failed to create session cookie' }));
+            throw new Error(error.error || 'Failed to create session cookie');
+        }
         
         // Send email verification
         await userCredential.user.sendEmailVerification();
         
-        console.log('Sign up successful, cookie set');
+        console.log('Sign up successful, session cookie created');
         return userCredential;
     } catch (error) {
         console.error('Error signing up:', error);
@@ -123,11 +159,23 @@ async function signInWithEmail(email, password) {
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         currentUser = userCredential.user;
         
-        // Explicitly set cookie immediately (don't wait for onIdTokenChanged)
-        // This ensures cookie is set before any redirect happens
-        await setIdTokenCookie(userCredential.user);
+        // Get ID token and create session cookie (Firebase Hosting only forwards __session cookie)
+        const idToken = await userCredential.user.getIdToken();
         
-        console.log('Sign in successful, cookie set');
+        // Call backend to create session cookie
+        const response = await fetch('/api/auth/signin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken: idToken }),
+            credentials: 'include' // Important: include cookies in request
+        });
+        
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: 'Failed to create session cookie' }));
+            throw new Error(error.error || 'Failed to create session cookie');
+        }
+        
+        console.log('Sign in successful, session cookie created');
         return userCredential;
     } catch (error) {
         console.error('Error signing in:', error);
@@ -189,10 +237,23 @@ async function signInWithEmailLinkComplete(email, emailLink) {
             window.localStorage.removeItem('emailForSignIn');
             currentUser = userCredential.user;
             
-            // Explicitly set cookie immediately
-            await setIdTokenCookie(userCredential.user);
+            // Get ID token and create session cookie
+            const idToken = await userCredential.user.getIdToken();
             
-            console.log('Email link sign in successful, cookie set');
+            // Call backend to create session cookie
+            const response = await fetch('/api/auth/signin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken: idToken }),
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({ error: 'Failed to create session cookie' }));
+                throw new Error(error.error || 'Failed to create session cookie');
+            }
+            
+            console.log('Email link sign in successful, session cookie created');
             return userCredential;
         } else {
             throw new Error('Invalid email link');
