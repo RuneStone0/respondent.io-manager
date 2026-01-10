@@ -22,16 +22,6 @@ python web.py
 The app will be available at:
 - **http://localhost:5000**
 
-### Using the run.sh script (Alternative)
-
-```bash
-# HTTP mode (quick testing)
-./run.sh --http
-
-# HTTPS mode (for WebAuthn/passkeys to work)
-./run.sh --https
-```
-
 ## Method 2: Test Cloud Function Locally
 
 To test how the app will run in Cloud Functions:
@@ -210,8 +200,7 @@ curl http://localhost:8080/
 
 1. **Auto-reload**: Flask's dev server auto-reloads on code changes
 2. **Debug mode**: Set `FLASK_DEBUG=True` in `.env` for detailed error pages
-3. **HTTPS for WebAuthn**: Use `./run.sh --https` if you need passkey authentication to work locally
-4. **Test before deploy**: Use `test_firebase_quick.py` to verify Firebase initialization before deploying
+3. **Test before deploy**: Use `test_firebase_quick.py` to verify Firebase initialization before deploying
 
 ## Next Steps
 

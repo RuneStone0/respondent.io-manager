@@ -101,7 +101,6 @@
 - ✅ Updated `.gitignore` to include `functions/firebase-debug.log`
 
 ### ✅ Requirements Consolidation
-- ✅ `gunicorn` - Confirmed: Only in root `requirements.txt` for local development (used by `run.sh` for HTTPS)
 - ✅ `google-cloud-scheduler` - Removed: No longer needed (using Firebase Function Scheduler via `firebase-functions`)
 - ✅ Added documentation comments to both requirements files explaining the differences
 
