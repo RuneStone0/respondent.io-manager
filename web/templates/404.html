@@ -4,52 +4,135 @@
 
 {% block extra_css %}
 <style>
+    /* Hide scrollbars on 404 page */
+    body {
+        overflow: hidden !important;
+    }
+    
+    /* Hide scrollbars for webkit browsers */
+    body::-webkit-scrollbar {
+        display: none;
+    }
+    
+    /* Hide scrollbars for Firefox */
+    body {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    
     .error-illustration {
         animation: float 3s ease-in-out infinite;
     }
     @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-15px) rotate(5deg); }
+    }
+    
+    .error-number {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+    
+    .glow-effect {
+        position: relative;
+    }
+    
+    .glow-effect::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+        animation: glow 3s ease-in-out infinite;
+        z-index: -1;
+    }
+    
+    @keyframes glow {
+        0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+        50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); }
+    }
+    
+    .card-hover {
+        transition: all 0.3s ease;
+    }
+    
+    .card-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     }
 </style>
 {% endblock %}
 
 {% block body %}
-<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex flex-col">
-    <div class="max-w-5xl mx-auto px-4 py-8 md:py-12 flex-1 flex flex-col">
+<div class="h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
+    <div class="max-w-6xl mx-auto px-4 py-8 md:py-16 flex-1 flex flex-col">
         <!-- 404 Content -->
         <div class="flex-1 flex items-center justify-center">
             <div class="text-center w-full">
+                <!-- Error Number with Glow -->
+                <div class="glow-effect mb-6">
+                    <h1 class="error-number text-9xl md:text-[12rem] font-extrabold mb-0 leading-none">
+                        404
+                    </h1>
+                </div>
+
                 <!-- Error Illustration -->
                 <div class="error-illustration mb-8">
-                    <svg class="w-64 h-64 mx-auto text-base-content/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    <svg class="w-48 h-48 md:w-64 md:h-64 mx-auto text-primary/30 dark:text-primary/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                 </div>
 
-                <!-- Error Message -->
-                <div class="bg-base-100 rounded-2xl p-8 shadow-lg max-w-2xl mx-auto">
-                    <h1 class="text-6xl font-bold mb-4 text-base-content">404</h1>
-                    <h2 class="text-2xl font-semibold mb-4 text-base-content">Page Not Found</h2>
-                    <p class="text-base-content/70 mb-8">
-                        The page you're looking for doesn't exist or has been moved. 
-                        Please check the URL and try again.
-                    </p>
+                <!-- Error Message Card -->
+                <div class="bg-base-100 dark:bg-slate-800 rounded-3xl p-8 md:p-12 shadow-2xl max-w-2xl mx-auto card-hover border border-base-300 dark:border-slate-700">
+                    <div class="mb-6">
+                        <h2 class="text-3xl md:text-4xl font-bold mb-4 text-base-content dark:text-slate-100">
+                            Oops! Page Not Found
+                        </h2>
+                        <p class="text-lg text-base-content/70 dark:text-slate-300 mb-2">
+                            The page you're looking for seems to have wandered off into the digital void.
+                        </p>
+                        <p class="text-base text-base-content/60 dark:text-slate-400">
+                            Don't worry, it happens to the best of us. Let's get you back on track!
+                        </p>
+                    </div>
                     
                     <!-- Action Buttons -->
-                    <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                        <a href="/about" class="btn btn-primary">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+                        <a href="/about" class="btn btn-primary btn-lg gap-2 shadow-lg hover:shadow-xl transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                             </svg>
                             Go Home
                         </a>
-                        <button onclick="window.history.back()" class="btn btn-ghost">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <button onclick="window.history.back()" class="btn btn-outline btn-lg gap-2 hover:btn-primary transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                             </svg>
                             Go Back
                         </button>
+                    </div>
+                    
+                    <!-- Helpful Links -->
+                    <div class="mt-8 pt-8 border-t border-base-300 dark:border-slate-700">
+                        <p class="text-sm text-base-content/50 dark:text-slate-500 mb-4">You might also be looking for:</p>
+                        <div class="flex flex-wrap justify-center gap-3">
+                            <a href="/about" class="link link-hover text-sm">About</a>
+                            <a href="/support" class="link link-hover text-sm">Support</a>
+                            <a href="/dashboard" class="link link-hover text-sm">Dashboard</a>
+                        </div>
                     </div>
                 </div>
             </div>

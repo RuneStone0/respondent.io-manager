@@ -336,6 +336,12 @@ def favicon():
     )
 
 
+@app.errorhandler(404)
+def page_not_found(e):
+    """Handle 404 errors with a custom page"""
+    return render_template('404.html'), 404
+
+
 # Register blueprints
 try:
     from .routes.auth_routes import bp as auth_bp
