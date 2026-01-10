@@ -352,9 +352,10 @@
             // Ensure cookie is set (signUp function should have set it, but double-check)
             const idToken = await userCredential.user.getIdToken();
             // Add Secure flag in production (HTTPS), but not in local development (HTTP)
+            // Use SameSite=None; Secure in production for maximum compatibility
             const isSecure = window.location.protocol === 'https:';
             const cookieOptions = isSecure 
-                ? 'path=/; max-age=3600; SameSite=Lax; Secure'
+                ? 'path=/; max-age=3600; SameSite=None; Secure'
                 : 'path=/; max-age=3600; SameSite=Lax';
             document.cookie = `firebase_id_token=${idToken}; ${cookieOptions}`;
             

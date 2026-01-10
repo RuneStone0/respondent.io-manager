@@ -113,13 +113,35 @@ def respondentpro(request):
     # Lazy load the app only when the function is called
     app = get_app()
     
+    # Convert headers to dict (functions-framework provides them as a case-insensitive dict-like object)
+    headers = dict(request.headers)
+    
+    # Extract Cookie header if present - Flask's test_request_context needs it
+    # The Cookie header should already be in request.headers from functions-framework
+    cookie_header = headers.get('Cookie') or headers.get('cookie', '')
+    
+    # If cookies are available as an attribute (some frameworks provide this), use them
+    if not cookie_header and hasattr(request, 'cookies') and request.cookies:
+        # Reconstruct Cookie header from cookies dict
+        cookie_parts = [f"{name}={value}" for name, value in request.cookies.items()]
+        if cookie_parts:
+            cookie_header = '; '.join(cookie_parts)
+            headers['Cookie'] = cookie_header
+    
     # Use Flask's test request context to handle the request
+    # Pass cookies via environ_base to ensure Flask can parse them into request.cookies
+    environ_base = {}
+    if cookie_header:
+        # Flask's WSGI expects HTTP_COOKIE in environ_base
+        environ_base['HTTP_COOKIE'] = cookie_header
+    
     with app.test_request_context(
         path=request.path,
         method=request.method,
-        headers=dict(request.headers),
+        headers=headers,
         data=request.get_data(),
-        query_string=request.query_string.decode('utf-8') if request.query_string else ''
+        query_string=request.query_string.decode('utf-8') if request.query_string else '',
+        environ_base=environ_base
     ):
         # Process the request through Flask
         response = app.full_dispatch_request()

@@ -8,50 +8,30 @@ let auth = null;
 let currentUser = null;
 
 /**
- * Set ID token cookie and set up token refresh
+ * Set ID token cookie - minimal implementation, let Firebase handle token refresh
  * @param {Object} user - Firebase user object
  */
 async function setIdTokenCookie(user) {
     try {
+        // Get token - Firebase handles caching and automatic refresh
         const idToken = await user.getIdToken();
-        // Set cookie with ID token
-        // Add Secure flag in production (HTTPS), but not in local development (HTTP)
+        
+        // Simple cookie setting - let browser handle defaults where possible
         const isSecure = window.location.protocol === 'https:';
         const cookieOptions = isSecure 
-            ? 'path=/; max-age=3600; SameSite=Lax; Secure'
-            : 'path=/; max-age=3600; SameSite=Lax';
-        document.cookie = `firebase_id_token=${idToken}; ${cookieOptions}`;
+            ? 'path=/; SameSite=None; Secure'
+            : 'path=/; SameSite=Lax';
         
-        // Set up periodic token refresh (every 50 minutes, before 1 hour expiry)
-        // Clear any existing interval first
-        if (window._tokenRefreshInterval) {
-            clearInterval(window._tokenRefreshInterval);
-        }
-        window._tokenRefreshInterval = setInterval(async () => {
-            try {
-                const refreshedToken = await user.getIdToken(true); // Force refresh
-                document.cookie = `firebase_id_token=${refreshedToken}; ${cookieOptions}`;
-                console.log('Token refreshed automatically');
-            } catch (error) {
-                console.error('Error refreshing token:', error);
-            }
-        }, 50 * 60 * 1000); // 50 minutes
+        document.cookie = `firebase_id_token=${idToken}; ${cookieOptions}`;
     } catch (error) {
-        console.error('Error getting ID token:', error);
-        throw error;
+        console.error('Error setting token cookie:', error);
     }
 }
 
 /**
- * Clear ID token cookie and token refresh interval
+ * Clear ID token cookie
  */
 function clearIdTokenCookie() {
-    // Clear token refresh interval
-    if (window._tokenRefreshInterval) {
-        clearInterval(window._tokenRefreshInterval);
-        window._tokenRefreshInterval = null;
-    }
-    // Remove cookie
     document.cookie = 'firebase_id_token=; path=/; max-age=0';
 }
 
@@ -73,12 +53,22 @@ function initFirebaseAuth(config) {
         
         auth = firebase.auth();
         
-        // Check if user is already signed in and set up cookie
+        // Use Firebase's native token change listener - fires on token refresh too
+        auth.onIdTokenChanged(async (user) => {
+            currentUser = user;
+            if (user) {
+                // Token changed (including automatic refresh) - update cookie
+                await setIdTokenCookie(user);
+            } else {
+                // User signed out - clear cookie
+                clearIdTokenCookie();
+            }
+        });
+        
+        // Set initial cookie if user is already signed in
         if (auth.currentUser) {
             currentUser = auth.currentUser;
-            setIdTokenCookie(auth.currentUser).catch(error => {
-                console.error('Error setting initial token cookie:', error);
-            });
+            setIdTokenCookie(auth.currentUser);
         }
         
         return true;
@@ -101,12 +91,11 @@ async function signUpWithEmail(email, password) {
     
     try {
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        // Note: createUserWithEmailAndPassword automatically signs the user in
+        // Firebase automatically signs the user in and triggers onAuthStateChanged
         // Send email verification
         await userCredential.user.sendEmailVerification();
-        // Set ID token cookie (user is already signed in)
         currentUser = userCredential.user;
-        await setIdTokenCookie(userCredential.user);
+        // Cookie will be set by onAuthStateChanged listener
         return userCredential;
     } catch (error) {
         console.error('Error signing up:', error);
@@ -127,9 +116,8 @@ async function signInWithEmail(email, password) {
     
     try {
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
-        // Update ID token cookie
+        // Firebase triggers onAuthStateChanged which sets the cookie
         currentUser = userCredential.user;
-        await setIdTokenCookie(userCredential.user);
         return userCredential;
     } catch (error) {
         console.error('Error signing in:', error);
@@ -189,9 +177,8 @@ async function signInWithEmailLinkComplete(email, emailLink) {
             const userCredential = await auth.signInWithEmailLink(email, emailLink);
             // Clear email from localStorage
             window.localStorage.removeItem('emailForSignIn');
-            // Update ID token cookie
+            // Firebase triggers onAuthStateChanged which sets the cookie
             currentUser = userCredential.user;
-            await setIdTokenCookie(userCredential.user);
             return userCredential;
         } else {
             throw new Error('Invalid email link');
